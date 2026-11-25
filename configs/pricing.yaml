@@ -1,0 +1,9 @@
+# Fallback price table, USD per 1M tokens. Keys match the model name with or without a provider prefix
+# ("openai/gpt-4o-mini" or "gpt-4o-mini"). Check against the provider's pricing page before a paid run.
+# Self-hosted backbones are priced at zero through `self_hosted: true` in backbones.yaml.
+models:
+  gpt-4o-mini:            { input: 0.15, cached_input: 0.075, output: 0.60 }
+  gpt-4o:                 { input: 2.50, cached_input: 1.25,  output: 10.00 }
+  text-embedding-3-small: { input: 0.02, cached_input: 0.02,  output: 0.0 }
+  text-embedding-3-large: { input: 0.13, cached_input: 0.13,  output: 0.0 }
+  fake/grader:            { input: 1.00, cached_input: 0.50,  output: 2.00 }  # test backbone; makes budget tests meaningful

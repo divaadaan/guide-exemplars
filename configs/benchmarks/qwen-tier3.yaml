@@ -1,0 +1,13 @@
+# Free self-hosted run, tier 3 (optional): extra seeds on aes-p7 for GUIDE and baselines. Seed 0 is reused
+# from tier 1 when results are written to the same directory.
+name: qwen-tier3
+backbone: qwen
+knn_embedder: st/all-MiniLM-L6-v2
+preset: aes-p7
+seeds: [0, 1, 2]
+methods: [guide, naive, random, knn, vote_k]
+random_draws: 5
+ablations: {}
+guide: {}
+bootstrap: { B: 2000, ci: 0.95, seed: 0 }
+max_cost_usd: 4

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Secrets
+.env
+!.env.example
+
+# Data: never commit raw datasets (Kaggle terms) or anything containing response text
+/data/
+/.cache/
+*.db
+*.db-wal
+*.db-shm
+
+# Benchmark results: only aggregate summaries and manifests are committed
+/results/**
+!/results/
+!/results/*/
+!/results/*/summary.md
+!/results/*/summary.csv
+!/results/*/deltas.csv
+!/results/*/manifest.json
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Offline smoke matrices are simulated; never publish their numbers
+/results/smoke-*/
+
+# Internal working notes (planning, hand-off); never published
+/notes/

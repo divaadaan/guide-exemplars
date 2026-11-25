@@ -1,0 +1,40 @@
+# Backbones: one grading/rationale LLM plus its default embedder. `${VAR}` and `${VAR:-default}` are read from
+# the environment (or a .env file). API keys are never written here, only the name of the variable that holds one.
+backbones:
+  gpt4o-mini:
+    kind: openai
+    model: openai/gpt-4o-mini
+    api_key_env: OPENAI_API_KEY
+    temperature: 0.2
+    max_concurrency: 16
+    # The account's gpt-4o-mini limit is 2M tokens/min (x-ratelimit-limit-tokens). Pace at 90% of it: one GUIDE
+    # evaluation is ~2.4M tokens, and bursting past the limit turns graded items into failures.
+    tpm_limit: 1800000
+    max_retries: 8
+    json_mode: true
+    embedder: openai/text-embedding-3-small
+
+  qwen:
+    # Self-hosted OpenAI-compatible server (e.g. vLLM). Set QWEN_API_BASE, e.g. http://host:8000/v1.
+    kind: openai
+    model: ${QWEN_MODEL:-orcarouter/Qwen3.8-27B-Uncensored-FP8}
+    api_base: ${QWEN_API_BASE}
+    api_key_env: QWEN_API_KEY
+    self_hosted: true
+    temperature: 0.2
+    max_concurrency: 8
+    json_mode: true
+    strip_think: true
+    extra_body:
+      chat_template_kwargs: { enable_thinking: false }
+    # Same embedder as gpt4o-mini so τ means the same thing across backbones.
+    embedder: openai/text-embedding-3-small
+
+  fake:
+    # Deterministic offline backbone for tests and demos; no network, no keys.
+    kind: fake
+    model: fake/grader
+    temperature: 0.2
+    max_concurrency: 32
+    json_mode: true
+    embedder: hash

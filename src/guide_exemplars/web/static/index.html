@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>guide-exemplars</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js" defer></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">guide-exemplars</span>
+      <span class="brand-sub">boundary-focused exemplar optimization</span>
+    </div>
+    <div class="topbar-right">
+      <span id="health" class="health" aria-live="polite">connecting…</span>
+      <a class="link" href="/docs" target="_blank" rel="noopener">API docs</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Jobs</h2>
+          <button id="refresh-jobs" class="btn ghost small" type="button" title="Refresh">Refresh</button>
+        </div>
+        <ul id="job-list" class="job-list" aria-label="Optimization jobs"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>New optimization</h2>
+        <form id="job-form" class="form" autocomplete="off">
+          <label>Dataset
+            <select id="dataset-select" name="dataset" required></select>
+          </label>
+          <details class="inline-details">
+            <summary>Import a prepared preset</summary>
+            <div class="row">
+              <select id="preset-select" aria-label="Preset"></select>
+              <button id="import-preset" class="btn small" type="button">Import</button>
+            </div>
+            <div class="row three">
+              <label>Train <input id="lim-train" type="number" min="1" placeholder="all"></label>
+              <label>Val <input id="lim-val" type="number" min="1" placeholder="all"></label>
+              <label>Test <input id="lim-test" type="number" min="1" placeholder="all"></label>
+            </div>
+          </details>
+          <label>Backbone
+            <select id="backbone-select" name="backbone" required></select>
+          </label>
+          <div class="row three">
+            <label>Rounds <input name="n_rounds" type="number" min="1" value="5"></label>
+            <label>Evals/round <input name="n_eval" type="number" min="2" value="32"></label>
+            <label>Seed <input name="seed" type="number" value="0"></label>
+          </div>
+          <div class="row three">
+            <label>|E| min <input name="k_min" type="number" min="1" value="4"></label>
+            <label>|E| max <input name="k_max" type="number" min="1" value="16"></label>
+            <label>Cap $ <input name="max_cost_usd" type="number" min="0" step="0.01" placeholder="none"></label>
+          </div>
+          <label class="check"><input name="paper_literal" type="checkbox"> Paper-literal mode</label>
+          <label>API key <span class="muted">(optional, kept in memory only)</span>
+            <input name="api_key" type="password" placeholder="uses the server's .env if empty">
+          </label>
+          <div class="row">
+            <button id="estimate-btn" class="btn" type="button">Estimate</button>
+            <button class="btn primary" type="submit">Start</button>
+          </div>
+          <p id="form-msg" class="form-msg" role="status"></p>
+        </form>
+      </section>
+    </aside>
+
+    <main id="detail" class="main">
+      <div id="empty" class="empty">
+        <h1>No job selected</h1>
+        <p>Pick a job on the left, or import a preset and start an optimization. The fake backbone runs
+          offline and free; it is a good way to see the whole flow.</p>
+      </div>
+
+      <div id="job-view" hidden>
+        <div class="job-head">
+          <div>
+            <h1 id="job-title">Job</h1>
+            <p id="job-sub" class="muted"></p>
+          </div>
+          <div class="row">
+            <button id="cancel-btn" class="btn" type="button">Cancel</button>
+            <button id="resume-btn" class="btn" type="button">Resume</button>
+          </div>
+        </div>
+
+        <div class="tiles" id="tiles">
+          <div class="tile"><span class="tile-label">Status</span><span class="tile-value" id="t-status">–</span></div>
+          <div class="tile"><span class="tile-label">Progress</span><span class="tile-value" id="t-progress">–</span></div>
+          <div class="tile"><span class="tile-label">Best validation accuracy</span><span class="tile-value" id="t-best">–</span></div>
+          <div class="tile"><span class="tile-label">Spend</span><span class="tile-value" id="t-cost">–</span></div>
+          <div class="tile"><span class="tile-label">LLM calls</span><span class="tile-value" id="t-calls">–</span></div>
+        </div>
+        <div class="evalbar" aria-hidden="true"><div id="evalbar-fill"></div></div>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Search progress</h2>
+            <span class="muted small-text">Validation accuracy of every evaluated set; the line is the best so far.</span>
+          </div>
+          <div id="convergence" class="chart" role="img" aria-label="Validation accuracy per evaluation"></div>
+          <details>
+            <summary>Table view</summary>
+            <div class="table-wrap"><table id="obs-table"></table></div>
+          </details>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Candidate pool</h2>
+            <label class="inline">Round <select id="round-select"></select></label>
+          </div>
+          <p class="muted small-text">PCA of response + rationale embeddings. Lines join boundary pairs (similar,
+            adjacent score levels); highlighted lines touch a selected exemplar. Ringed points are the selected exemplars;
+            diamonds are expert anchors.</p>
+          <div id="poolmap" class="chart tall" role="img" aria-label="Candidate pool map"></div>
+          <p id="pool-meta" class="muted small-text"></p>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Exemplar set</h2>
+            <span id="set-meta" class="muted small-text"></span>
+          </div>
+          <div id="exemplars" class="exemplars"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Grade with this set</h2></div>
+          <form id="grade-form" class="form">
+            <label>Responses, one per line
+              <textarea id="grade-input" rows="4" placeholder="Paste responses to score…"></textarea>
+            </label>
+            <div class="row"><button class="btn primary" type="submit">Grade</button>
+              <span id="grade-msg" class="muted small-text" role="status"></span></div>
+          </form>
+          <div class="table-wrap"><table id="grade-table"></table></div>
+        </section>
+
+        <section class="card">
+          <details>
+            <summary>Event log</summary>
+            <ol id="event-log" class="event-log"></ol>
+          </details>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

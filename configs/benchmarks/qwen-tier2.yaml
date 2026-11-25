@@ -1,0 +1,12 @@
+# Free self-hosted run, tier 2: the four ASAP-SAS short-answer tasks, GUIDE and baselines (seed 0).
+name: qwen-tier2
+backbone: qwen
+knn_embedder: st/all-MiniLM-L6-v2
+preset: sas
+seeds: [0]
+methods: [guide, naive, random, knn, vote_k]
+random_draws: 5
+ablations: {}
+guide: {}
+bootstrap: { B: 2000, ci: 0.95, seed: 0 }
+max_cost_usd: 2

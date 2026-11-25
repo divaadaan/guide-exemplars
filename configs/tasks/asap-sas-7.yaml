@@ -1,0 +1,24 @@
+# ASAP-SAS set 7 (English language arts, 0-2). The wording here is written for this repo. Check the prompt
+# summary and rubric against the Kaggle data description before publishing results.
+name: asap-sas-7
+version: 1
+response_noun: answer
+labels:
+  - { value: 0, description: "No valid trait, or a trait with no relevant support." }
+  - { value: 1, description: "Identifies a valid trait with limited or vague supporting detail." }
+  - { value: 2, description: "Identifies a valid trait and supports it with an appropriate detail from the story." }
+persona: You are an experienced reading assessor scoring short constructed responses against a rubric.
+instruction: >-
+  Score whether the answer identifies one trait of the character Rose and supports it with a detail from
+  the story.
+context: >-
+  Students read a short story about a girl named Rose and her family (including conversations with her
+  sister Anna and her aunt). They were asked to identify one trait that describes Rose based on those
+  conversations and to give one detail from the story that supports it. Valid traits include hardworking,
+  caring, responsible, selfless, worried, and similar.
+rubric: >-
+  A full-credit answer names a valid trait and gives a specific, relevant detail from the story. Partial
+  credit goes to a valid trait with weak, vague, or loosely connected support.
+rationale_focus: >-
+  Name the trait the answer identifies, say whether it is valid, and evaluate the supporting detail it gives.
+rationale_max_words: 60

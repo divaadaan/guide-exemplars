@@ -1,0 +1,115 @@
+{
+  "matrix": {
+    "name": "gpt4o-mini-headline",
+    "description": "GUIDE vs Naive / Random / KNN-SBERT / Vote-k on aes-p7 with gpt-4o-mini (seed 0).",
+    "backbone": "gpt4o-mini",
+    "embedder": null,
+    "knn_embedder": "st/all-MiniLM-L6-v2",
+    "preset": "aes-p7",
+    "tasks": null,
+    "seeds": [
+      0
+    ],
+    "methods": [
+      "guide",
+      "naive",
+      "random",
+      "knn",
+      "vote_k"
+    ],
+    "random_draws": 5,
+    "ablations": {},
+    "guide": {},
+    "limits": {
+      "train": null,
+      "val": null,
+      "test": null
+    },
+    "k_default": 8,
+    "bootstrap": {
+      "B": 2000,
+      "ci": 0.95,
+      "seed": 0
+    },
+    "max_cost_usd": 35.0
+  },
+  "matrix_hash": "fe3f9429297d3a68",
+  "package_version": "0.1.0",
+  "python": "3.12.10",
+  "git": {
+    "sha": "dda8aeeed73749dc5c93bee00cb2f3712b318e16",
+    "dirty": true
+  },
+  "backbone": {
+    "name": "gpt4o-mini",
+    "kind": "openai",
+    "model": "openai/gpt-4o-mini",
+    "api_base": null,
+    "api_key_env": "OPENAI_API_KEY",
+    "self_hosted": false,
+    "temperature": 0.2,
+    "max_concurrency": 16,
+    "timeout_s": 120.0,
+    "max_retries": 8,
+    "tpm_limit": 1800000,
+    "json_mode": true,
+    "strip_think": false,
+    "extra_body": {},
+    "max_tokens_param": "max_tokens",
+    "embedder": "openai/text-embedding-3-small",
+    "embedder_api_base": null,
+    "embedder_api_key_env": "OPENAI_API_KEY"
+  },
+  "replay": false,
+  "started_at": 1795631766.071521,
+  "tasks": {
+    "aes-p7": {
+      "split_hash": "71fd5b24aa2630d9",
+      "raw_sha256": "cf04127eaff3224ce4aab64654e62e5738d3d672c61bb998546dd1674c60d312",
+      "n_train": 927,
+      "n_val": 311,
+      "n_test": 311,
+      "n_experts": 4,
+      "human": {
+        "acc": 0.6239536381197682,
+        "qwk": 0.5991485765706517
+      }
+    }
+  },
+  "finished_at": 1795639454.63444,
+  "usage": {
+    "calls": 56273,
+    "cache_hits": 6761,
+    "prompt_tokens": 222402685,
+    "cached_prompt_tokens": 187445632,
+    "completion_tokens": 3179639,
+    "cost_usd": 21.166138089999848
+  },
+  "usage_by_purpose": {
+    "grade": {
+      "calls": 52559,
+      "cache_hits": 4907,
+      "prompt_tokens": 213138929,
+      "cached_prompt_tokens": 179989632,
+      "completion_tokens": 2986181,
+      "cost_usd": 20.263325549999884
+    },
+    "rationale_disc": {
+      "calls": 3708,
+      "cache_hits": 1854,
+      "prompt_tokens": 8928174,
+      "cached_prompt_tokens": 7456000,
+      "completion_tokens": 193458,
+      "cost_usd": 0.8961009000000002
+    },
+    "embed": {
+      "calls": 6,
+      "cache_hits": 0,
+      "prompt_tokens": 335582,
+      "cached_prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": 0.00671164
+    }
+  },
+  "spent_usd": 21.166138089999848
+}

@@ -1,0 +1,27 @@
+# ASAP-SAS set 5 (biology, 0-3). The wording here is written for this repo. Check the prompt summary and rubric
+# against the Kaggle data description before publishing results.
+name: asap-sas-5
+version: 1
+response_noun: answer
+labels:
+  - { value: 0, description: "No correct key elements of protein synthesis." }
+  - { value: 1, description: "One or two correct key elements." }
+  - { value: 2, description: "Three correct key elements." }
+  - { value: 3, description: "Four or more correct key elements." }
+persona: You are an experienced biology assessor scoring short constructed responses against a rubric.
+instruction: >-
+  Score the answer by counting the correct key elements it gives for the major steps of protein synthesis,
+  starting with mRNA leaving the nucleus.
+context: >-
+  Students were asked to list and describe the major steps of protein synthesis, starting with mRNA leaving
+  the nucleus. Key elements include: mRNA exits the nucleus through a nuclear pore; mRNA travels to a
+  ribosome; codons on the mRNA are read in triplets; tRNA carrying the complementary anticodon recognizes the
+  codon; tRNA brings the corresponding amino acid; amino acids are linked by peptide bonds; translation
+  starts at a start codon (AUG) and ends at a stop codon.
+rubric: >-
+  Award credit for each correct, distinct key element. Statements about steps before mRNA leaves the nucleus
+  (e.g., transcription) earn no credit. Incorrect statements earn no credit.
+rationale_focus: >-
+  List exactly which key elements the answer states correctly. Note any credit-free content (pre-nucleus
+  steps, errors).
+rationale_max_words: 60

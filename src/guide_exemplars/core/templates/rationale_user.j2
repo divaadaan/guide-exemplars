@@ -1,0 +1,34 @@
+{% if demos %}
+Reference examples, each with the reason for its score:
+
+<examples>
+{% for d in demos %}
+<example>
+<example_response>
+{{ d.text }}
+</example_response>
+<example_label>{{ d.label }}</example_label>
+<example_rationale>{{ d.rationale }}</example_rationale>
+</example>
+{% endfor %}
+</examples>
+
+{% endif %}
+This {{ task.response_noun }} was scored {{ label }} by expert raters.
+
+<response_to_explain>
+{{ text }}
+</response_to_explain>
+
+{% if discriminative and neighbours %}
+In at most {{ task.rationale_max_words }} words, explain why it deserves {{ label }} and not {{ neighbours | join(' or ') }}.
+{% if lower %}
+Say what it does that a {{ lower }} {{ task.response_noun }} would not.
+{% endif %}
+{% if higher %}
+Say what keeps it from a {{ higher }}.
+{% endif %}
+{% else %}
+In at most {{ task.rationale_max_words }} words, explain why it earns a score of {{ label }}.
+{% endif %}
+{{ task.rationale_focus }}

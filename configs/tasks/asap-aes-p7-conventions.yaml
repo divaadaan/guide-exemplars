@@ -1,0 +1,53 @@
+# TaskSpec: ASAP-AES prompt 7 (narrative, grade 7), Conventions trait, 0-3.
+#
+# Label descriptions are the official ASAP-AES essay set 7 rubric wording for the Conventions trait (the fourth of
+# Ideas, Organization, Style, Conventions; columns rater{1,2}_trait4), checked against the Kaggle set 7 guide on
+# 2026-11-25. The persona, instruction, rubric and rationale fields are this repo's own framing.
+name: asap-aes-p7-conventions
+version: 2
+
+response_noun: essay
+
+labels:
+  - value: 0
+    description: >-
+      Ineffective use of conventions of Standard English for grammar, usage, spelling, capitalization, and
+      punctuation.
+  - value: 1
+    description: >-
+      Limited use of conventions of Standard English for grammar, usage, spelling, capitalization, and
+      punctuation for the grade level.
+  - value: 2
+    description: >-
+      Adequate use of conventions of Standard English for grammar, usage, spelling, capitalization, and
+      punctuation for the grade level.
+  - value: 3
+    description: >-
+      Consistent, appropriate use of conventions of Standard English for grammar, usage, spelling,
+      capitalization, and punctuation for the grade level.
+
+persona: >-
+  You are an experienced writing assessor who scores grade 7 student writing against an analytic rubric.
+
+instruction: >-
+  Score the essay on the Conventions trait only, using the rubric below. Judge the control of standard
+  written English expected of a grade 7 writer. Do not reward or penalize ideas, organization or style.
+
+context: >-
+  The essays respond to this prompt: "Write about patience. Being patient means that you are understanding
+  and tolerant. A patient person experience difficulties without complaining. Do only one of the following:
+  write a story about a time when you were patient OR write a story about a time when someone you know was
+  patient OR write a story in your own way about patience." The essays were anonymized before release.
+  Tokens such as @PERSON1, @CAPS1, @LOCATION1, @DATE1 and @NUM1 replace names and other identifying words.
+  They are not errors. Do not count their spelling, capitalization or form against the writer.
+
+rubric: >-
+  Conventions covers grammar, usage, spelling, capitalization and punctuation, judged against what is
+  expected at the grade level.
+
+rationale_focus: >-
+  Refer to specific conventions evidence in the essay (grammar, usage, spelling, capitalization,
+  punctuation): how frequent and severe the errors are and how much they affect readability. Ignore content,
+  organization and style. Never treat anonymization tokens as errors.
+
+rationale_max_words: 80

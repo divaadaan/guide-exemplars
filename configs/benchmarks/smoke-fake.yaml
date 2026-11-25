@@ -1,0 +1,16 @@
+# Offline smoke matrix: simulated grader, hashing embedder, small limits. Free; runs in about a minute.
+name: smoke-fake
+description: End-to-end check of the benchmark harness with the fake backbone.
+backbone: fake
+knn_embedder: hash
+preset: aes-p7
+seeds: [0]
+methods: [guide, naive, random, knn, vote_k]
+random_draws: 3
+ablations:
+  no_contrastive: { op_add: 0, op_swap: 0, op_flip: 64 }
+  no_discriminative: { phase2: false }
+  paper_literal: { paper_literal: true }
+guide: { n_rounds: 2, n_eval: 8, n_init: 4, k_min: 4, k_max: 8, n_candidates: 64, op_add: 16, op_swap: 16, op_flip: 16, tau: 0.5 }
+limits: { train: 60, val: 30, test: 40 }
+bootstrap: { B: 200, ci: 0.95, seed: 0 }

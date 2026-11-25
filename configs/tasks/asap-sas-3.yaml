@@ -1,0 +1,26 @@
+# ASAP-SAS set 3 (English language arts, 0-2). The wording here is written for this repo. Check the prompt
+# summary and rubric against the Kaggle data description before publishing results.
+name: asap-sas-3
+version: 1
+response_noun: answer
+labels:
+  - { value: 0, description: "Inaccurate, irrelevant, or no supported comparison." }
+  - { value: 1, description: "Partial: a relevant comparison with limited or vague support from the text." }
+  - { value: 2, description: "Clear comparison supported by relevant, specific information from the text." }
+persona: You are an experienced reading assessor scoring short constructed responses against a rubric.
+instruction: >-
+  Score how well the answer explains, using information from the article, how the pandas and koalas are
+  similar and how they differ from the pythons.
+context: >-
+  Students read an informational article about invasive species. They were asked to explain how pandas in
+  China are similar to koalas in Australia and how they both differ from pythons in the Everglades. Key
+  ideas: pandas and koalas are specialists that depend on one food source (bamboo or eucalyptus) and a narrow
+  habitat; pythons are generalists that can eat many things and live in many environments, which lets them
+  spread as an invasive species.
+rubric: >-
+  A full-credit answer states the similarity and the difference and supports both with key ideas from the
+  article. Partial credit goes to a relevant similarity or difference with limited support.
+rationale_focus: >-
+  Say whether the answer states the similarity and the difference, and which supporting details from the
+  article it uses.
+rationale_max_words: 60

@@ -1,0 +1,16 @@
+name: demo
+description: >-
+  Synthetic demo set: 150 made-up grade 7 essays on the ASAP-AES prompt 7 topic (patience), each written by
+  gpt-4o-mini to a target Conventions score (0-3). Labels are generation targets, not human ratings, so use it to try
+  the tool, not to measure accuracy. Ships with the repo; no download or prepare step needed.
+tasks:
+  - id: demo
+    task: tasks/asap-aes-p7-conventions.yaml
+    source:
+      kind: file
+      root: config
+      file: demo-data/patience-synthetic.jsonl
+split:
+  ratios: [3, 1, 1]
+  seed: 0
+  experts_per_label: 1

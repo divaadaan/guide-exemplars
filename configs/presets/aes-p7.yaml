@@ -1,0 +1,17 @@
+name: aes-p7
+description: >-
+  ASAP-AES essay set 7 (grade 7 narrative on patience), Conventions trait (0-3). Rater scores are combined with
+  min_drop_gap2: drop items whose raters differ by 2 or more, otherwise take the lower score.
+tasks:
+  - id: aes-p7
+    task: tasks/asap-aes-p7-conventions.yaml
+    source:
+      kind: asap_aes
+      file: asap-aes/training_set_rel3.tsv
+      essay_set: 7
+      trait: 4
+      label_policy: min_drop_gap2
+split:
+  ratios: [3, 1, 1]
+  seed: 0
+  experts_per_label: 1

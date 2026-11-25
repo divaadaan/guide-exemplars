@@ -1,0 +1,22 @@
+name: sas
+description: >-
+  Four ASAP-SAS short-answer prompts covering science and ELA and both 0-3 and 0-2 scales. Each prompt is a
+  separate task. Score1 is the label; Score2 gives the human ceiling. The prompt and rubric text in each task spec
+  should be checked against the Kaggle data description before publishing results.
+tasks:
+  - id: sas-1
+    task: tasks/asap-sas-1.yaml
+    source: { kind: asap_sas, file: asap-sas/train.tsv, essay_set: 1 }
+  - id: sas-5
+    task: tasks/asap-sas-5.yaml
+    source: { kind: asap_sas, file: asap-sas/train.tsv, essay_set: 5 }
+  - id: sas-3
+    task: tasks/asap-sas-3.yaml
+    source: { kind: asap_sas, file: asap-sas/train.tsv, essay_set: 3 }
+  - id: sas-7
+    task: tasks/asap-sas-7.yaml
+    source: { kind: asap_sas, file: asap-sas/train.tsv, essay_set: 7 }
+split:
+  ratios: [3, 1, 1]
+  seed: 0
+  experts_per_label: 1

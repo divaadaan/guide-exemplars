@@ -1,0 +1,20 @@
+services:
+  guide:
+    build:
+      context: .
+      args:
+        LOCAL_EMBED: "false"   # "true" adds CPU torch + MiniLM for the KNN-SBERT baseline
+    image: guide-exemplars:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/data          # raw + prepared datasets (guide data prepare runs on the host or in the container)
+      - ./results:/results    # benchmark artifacts
+      - guide-cache:/cache    # service DB + LLM/embedding response caches
+    restart: unless-stopped
+
+volumes:
+  guide-cache: {}

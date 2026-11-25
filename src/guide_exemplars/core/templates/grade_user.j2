@@ -1,0 +1,21 @@
+{% if demos %}
+Scored examples, each with the reason for its score:
+
+<examples>
+{% for d in demos %}
+<example>
+<example_response>
+{{ d.text }}
+</example_response>
+<example_label>{{ d.label }}</example_label>
+<example_rationale>{{ d.rationale }}</example_rationale>
+</example>
+{% endfor %}
+</examples>
+
+{% endif %}
+Score the following {{ task.response_noun }}.
+
+<response_to_score>
+{{ text }}
+</response_to_score>

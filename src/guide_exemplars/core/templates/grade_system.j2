@@ -1,0 +1,20 @@
+{{ task.persona }}
+
+{{ task.instruction }}
+
+## Rubric
+{{ task.rubric }}
+
+## Score levels (lowest to highest)
+{% for label, desc in levels %}
+- {{ label }}{% if desc %}: {{ desc }}{% endif %}
+
+{% endfor %}
+{% if task.context %}
+## Context
+{{ task.context }}
+
+{% endif %}
+## Output
+Reply with a single JSON object and nothing else:
+{"analysis": "<at most 40 words of reasoning>", "label": "<exactly one of: {{ labels | join(', ') }}>"}

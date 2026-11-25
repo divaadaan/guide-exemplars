@@ -1,0 +1,27 @@
+# ASAP-SAS set 1 (science, 0-3). The wording here is written for this repo. Check the prompt summary and rubric
+# against the Kaggle data description before publishing results.
+name: asap-sas-1
+version: 1
+response_noun: answer
+labels:
+  - { value: 0, description: "Describes no relevant additional information needed to replicate the experiment." }
+  - { value: 1, description: "Describes one relevant piece of additional information." }
+  - { value: 2, description: "Describes two relevant pieces of additional information." }
+  - { value: 3, description: "Describes three or more relevant pieces of additional information." }
+persona: You are an experienced science assessor scoring short constructed responses against a rubric.
+instruction: >-
+  Score the answer by counting the distinct, relevant pieces of additional information it says are needed to
+  replicate the experiment.
+context: >-
+  Students read a group's experimental procedure (an acid-rain investigation of mass change in different
+  samples placed in vinegar) and were asked what additional information they would need to replicate the
+  experiment. Relevant examples include the amount or concentration of vinegar, the type of container, the
+  size or surface area of the samples, the rinsing method, the drying method and duration, and the container
+  size.
+rubric: >-
+  Award one point per distinct, relevant piece of missing procedural information, up to three. Vague or
+  repeated points do not count twice. Information already given in the procedure does not count.
+rationale_focus: >-
+  Name exactly which pieces of additional information the answer gives, and say whether each one is
+  relevant and distinct.
+rationale_max_words: 60
