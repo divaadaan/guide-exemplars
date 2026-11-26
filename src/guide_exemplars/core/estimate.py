@@ -90,7 +90,6 @@ def estimate_run(
     seconds_per_call: float = 1.5,
     tpm_limit: float | None = None,
 ) -> Estimate:
-    cfg = cfg.resolved()
     prompts = PromptBuilder(task)
     L = _mean_tokens([it.text for it in train] or [it.text for it in val], count_tokens)
     R = rationale_output_tokens if rationale_output_tokens is not None else 1.25 * task.rationale_max_words

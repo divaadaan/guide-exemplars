@@ -142,13 +142,26 @@ async def test_cancel_mid_run() -> None:
     assert len(result.observations) == 3 and result.best is not None
 
 
-async def test_paper_literal_mode() -> None:
-    cfg = SMALL.model_copy(update={"paper_literal": True})
-    opt = optimizer(cfg)
-    assert opt.cfg.featurizer == "membership" and opt.cfg.contrastive_score == "pair_ratio"
-    result = await opt.run()
+async def test_paper_choices_run() -> None:
+    cfg = SMALL.model_copy(
+        update={
+            "adjacent_only": False,
+            "contrastive_score": "pair_ratio",
+            "featurizer": "membership",
+            "protect_incumbent": False,
+            "final_selection": "last_round",
+        }
+    )
+    result = await optimizer(cfg).run()
     assert result.status == "completed"
     assert result.best.round == 2  # final pick is E*_T
+
+
+def test_configs_saved_with_paper_literal_false_still_load() -> None:
+    saved = {**SMALL.model_dump(mode="json"), "paper_literal": False}
+    assert GuideConfig.model_validate(saved) == SMALL
+    with pytest.raises(ValueError, match="paper_literal is no longer supported"):
+        GuideConfig.model_validate({**saved, "paper_literal": True})
 
 
 async def test_survives_provider_failures() -> None:

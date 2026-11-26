@@ -101,11 +101,11 @@ g(E) = max(w1 · (Acc(E) − Acc*), w2 · (−|E|)) + w3 · C(E),   w1 ~ U(0.25,
 > sets. With raw sizes (4–16) the size term only wins for sets far behind the best, which is the intended
 > behaviour. Tests pin both cases down ([`tests/unit/test_objective.py`](../../tests/unit/test_objective.py)).
 >
-> Where a literal reading of the paper works poorly, the improved choice is the default and
-> `paper_literal: true` restores the original. One example: describing a set to the GP as a membership vector
-> over a 512-item pool leaves the GP near its prior after ~32 observations, so expected improvement degenerates
-> into random search; set-level features (mean embedding, score histogram, size) generalize to unseen sets. The
-> README's [fidelity section](../../README.md#fidelity-to-the-paper) lists each choice.
+> Where a literal reading of the paper works poorly, the improved choice is the default. One example: describing
+> a set to the GP as a membership vector over a 512-item pool leaves the GP near its prior after ~32
+> observations, so expected improvement degenerates into random search; set-level features (mean embedding,
+> score histogram, size) generalize to unseen sets. The README's
+> [fidelity section](../../README.md#fidelity-to-the-paper) lists each choice.
 
 ## 4 · Boundary pairs
 

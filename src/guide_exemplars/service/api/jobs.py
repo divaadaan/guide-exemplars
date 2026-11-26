@@ -226,7 +226,7 @@ async def pool_map(
         cp = max(cps, key=Checkpoint.sort_key)
     pool = Pool.from_records(cp.pool)
     spec = prepared_from_db(st, job["task_id"], job["dataset_id"]).spec
-    cfg = GuideConfig.model_validate({**json.loads(job["config_json"]), "seed": job["seed"]}).resolved()
+    cfg = GuideConfig.model_validate({**json.loads(job["config_json"]), "seed": job["seed"]})
     bb = BackboneConfig.model_validate(json.loads(job["backbone_json"]))
     embedder = build_embedder(
         bb.embedder,

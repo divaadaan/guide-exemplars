@@ -139,14 +139,15 @@ Seeded RNG streams and the response cache make the resumed run identical to an u
 The defaults follow the paper wherever it is specific: T = 5 rounds, 32 evaluations per round, |E| ∈ [4, 16],
 τ = 0.7, 256 acquisition candidates, pool cap 512, temperature 0.2, GPT-4o-mini with text-embedding-3-small, and a
 3:1:1 split. Where the paper leaves a detail open, or a literal reading works poorly, the improved choice is the
-default. `paper_literal: true` switches every one of those back, and the benchmark runs both.
+default. Each choice is its own `GuideConfig` field (named in the table), so the paper's version can be set
+individually.
 
-| Detail | Default here | `paper_literal` | Why |
+| Detail | Default here | Paper | Why |
 |---|---|---|---|
-| GP input | mean PCA-16 embedding + label histogram + size | binary membership over the pool | With ~32 observations per round over a 512-item pool, membership vectors leave the GP close to its prior, so EI degenerates into near-random search. Set features generalize to unseen sets. |
-| Contrastive score | *coverage*: share of members with an adjacent-level partner at cos ≥ τ | boundary pairs / C(n, 2), any differing labels | Pair-ratio shrinks quadratically with set size, which duplicates the sparsity term. The operators already use adjacent levels (the paper's C_i). |
-| Pool cap | always keeps the current E*_t | uniform random beyond the experts | Round t+1 must be able to re-score the incumbent. |
-| Final pick | best over all rounds (lexicographic: accuracy, contrastive, −size) | best of the last round | Validation set and grader are fixed, so accuracies are comparable across rounds. |
+| GP input (`featurizer`) | mean PCA-16 embedding + label histogram + size | binary membership over the pool | With ~32 observations per round over a 512-item pool, membership vectors leave the GP close to its prior, so EI degenerates into near-random search. Set features generalize to unseen sets. |
+| Contrastive score (`contrastive_score`, `adjacent_only`) | *coverage*: share of members with an adjacent-level partner at cos ≥ τ | boundary pairs / C(n, 2), any differing labels | Pair-ratio shrinks quadratically with set size, which duplicates the sparsity term. The operators already use adjacent levels (the paper's C_i). |
+| Pool cap (`protect_incumbent`) | always keeps the current E*_t | uniform random beyond the experts | Round t+1 must be able to re-score the incumbent. |
+| Final pick (`final_selection`) | best over all rounds (lexicographic: accuracy, contrastive, −size) | best of the last round | Validation set and grader are fixed, so accuracies are comparable across rounds. |
 
 Correctness details the paper doesn't spell out, all tested:
 - The round-local incumbent and E*_{t−1} are re-seeded into round t, so the operators never perturb a stale set.

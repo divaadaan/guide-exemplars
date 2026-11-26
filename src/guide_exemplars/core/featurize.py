@@ -5,7 +5,7 @@ PCA-projected embeddings, its label-rank histogram, and its relative size. Simil
 together even when they share no members. That matters with only ~32 observations per round over a pool of
 hundreds.
 
-``MembershipFeaturizer`` is the paper-literal option: one binary coordinate per pool exemplar (by uid).
+``MembershipFeaturizer`` is the paper's literal choice: one binary coordinate per pool exemplar (by uid).
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class SetFeaturizer(Protocol):
 
 
 class MembershipFeaturizer:
-    """Binary membership vector over the pool's uids (paper-literal)."""
+    """Binary membership vector over the pool's uids (the paper's literal choice)."""
 
     def __init__(self) -> None:
         self._pos: dict[str, int] = {}

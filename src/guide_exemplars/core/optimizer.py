@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -42,19 +42,12 @@ from guide_exemplars.core.types import Exemplar, Item, Observation, Subset
 
 Status = Literal["completed", "cancelled", "budget_exhausted"]
 
-_LITERAL_OVERRIDES = {
-    "adjacent_only": False,
-    "contrastive_score": "pair_ratio",
-    "featurizer": "membership",
-    "protect_incumbent": False,
-    "final_selection": "last_round",
-}
-
 
 class GuideConfig(BaseModel):
     """All GUIDE hyperparameters. Defaults follow the paper where it is specific (T=5, 32 evaluations per
     round, |E| in [4, 16], τ=0.7, 256 acquisition candidates, pool cap 512). Elsewhere they use the improved
-    choices listed in the README (Fidelity to the paper); ``paper_literal=True`` switches those back."""
+    choices listed in the README (Fidelity to the paper). Each of those has its own field, so the paper's literal
+    choice can be set individually."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -85,7 +78,20 @@ class GuideConfig(BaseModel):
     # Stop the run (ProviderUnstable) when more than this share of one evaluation's grading calls fail at the
     # provider after retries. None = never stop; failures then count as wrong answers, as in the paper.
     max_provider_error_rate: float | None = Field(0.02, ge=0.0, le=1.0)
-    paper_literal: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_legacy_keys(cls, data: Any) -> Any:
+        # Configs saved by earlier versions carry ``paper_literal: false``. Drop it so they still load.
+        # ``true`` changed five other fields, so it is rejected rather than silently ignored.
+        if isinstance(data, dict) and "paper_literal" in data:
+            data = dict(data)
+            if data.pop("paper_literal"):
+                raise ValueError(
+                    "paper_literal is no longer supported; set adjacent_only=False, contrastive_score='pair_ratio', "
+                    "featurizer='membership', protect_incumbent=False and final_selection='last_round' instead"
+                )
+        return data
 
     @model_validator(mode="after")
     def _check(self) -> GuideConfig:
@@ -98,10 +104,6 @@ class GuideConfig(BaseModel):
         if not 0 <= self.w1_low <= self.w1_high <= 1:
             raise ValueError("need 0 <= w1_low <= w1_high <= 1")
         return self
-
-    def resolved(self) -> GuideConfig:
-        """The effective configuration, with paper-literal overrides applied."""
-        return self.model_copy(update=_LITERAL_OVERRIDES) if self.paper_literal else self
 
 
 @dataclass
@@ -141,7 +143,7 @@ class GuideOptimizer:
         cancel: CancelToken | None = None,
     ):
         self.task = task
-        self.cfg = (cfg or GuideConfig()).resolved()
+        self.cfg = cfg or GuideConfig()
         self.scale = task.scale
         for it in [*train, *val, *experts]:
             self.scale.rank(it.label)  # raises on labels not on the scale

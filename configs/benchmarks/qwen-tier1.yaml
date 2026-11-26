@@ -1,4 +1,4 @@
-# Free self-hosted run, tier 1: aes-p7 with GUIDE, all baselines and the three ablations (seed 0).
+# Free self-hosted run, tier 1: aes-p7 with GUIDE, all baselines and the two ablations (seed 0).
 # Same split and embedder as the gpt4o-mini headline, so the two backbones compare directly.
 name: qwen-tier1
 backbone: qwen
@@ -10,7 +10,6 @@ random_draws: 5
 ablations:
   no_contrastive: { op_add: 0, op_swap: 0, op_flip: 128 }
   no_discriminative: { phase2: false }
-  paper_literal: { paper_literal: true }
 guide: {}
 bootstrap: { B: 2000, ci: 0.95, seed: 0 }
 max_cost_usd: 2  # embedding spend only; the self-hosted LLM is priced at zero

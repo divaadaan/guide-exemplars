@@ -80,7 +80,6 @@ function jobBody() {
   const num = (k) => (f.get(k) === "" || f.get(k) == null ? undefined : Number(f.get(k)));
   const config = { n_rounds: num("n_rounds"), n_eval: num("n_eval"), k_min: num("k_min"), k_max: num("k_max") };
   if (config.n_eval !== undefined) config.n_init = Math.min(8, config.n_eval);
-  if (f.get("paper_literal")) config.paper_literal = true;
   return {
     body: {
       task_id: opt?.dataset.task, dataset_id: opt?.value, backbone: f.get("backbone"), seed: num("seed") ?? 0,
