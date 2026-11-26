@@ -1,14 +1,13 @@
 # guide-exemplars
 
-**Boundary-focused in-context exemplar optimization for LLM-based ordinal grading.** It ships as a Python library, a
-CLI and a FastAPI microservice with a live dashboard.
+**Boundary-focused in-context exemplar optimization for LLM-based grading.** 
 
 This is an independent, domain-agnostic implementation of **GUIDE** (*Grading Using Iteratively Designed Exemplars*)
 from Chu et al., *Optimizing In-Context Demonstrations for LLM-based Automated Grading*
 ([arXiv:2603.00465](https://arxiv.org/abs/2603.00465), 2026).
 
 When an LLM grades with few-shot demonstrations, which demonstrations it sees matters more than almost anything else.
-Retrieving similar examples misses the subtle line between adjacent score levels. GUIDE goes after that line directly:
+GUIDE optimizes that demonstration selection:
 
 - It searches for **boundary pairs**: responses that look alike but sit one score level apart.
 - It optimizes a small, **fixed** demonstration set with Bayesian optimization.
@@ -16,8 +15,8 @@ Retrieving similar examples misses the subtle line between adjacent score levels
 
 The result is a frozen exemplar set you can deploy behind a grading endpoint.
 
-**New here? Start with the [walkthrough](docs/walkthrough/README.md):** the results, how to read them, and a screenshot
-tour of the dashboard, with no install needed.
+**For your convenience, try the [walkthrough](docs/walkthrough/README.md):** the results, how to read them, and a screenshot
+tour of the dashboard.
 
 ```mermaid
 flowchart LR
@@ -110,8 +109,7 @@ uv run guide serve                               # http://127.0.0.1:8000  (API d
 docker compose up --build                        # same, containerized
 ```
 
-## The API in one minute
-
+## API
 ```bash
 B=http://127.0.0.1:8000/api
 # 1. a task (rubric, levels, persona…) and labeled data (CSV/JSONL: item_id,text,label[,split])
