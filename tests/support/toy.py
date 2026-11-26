@@ -57,6 +57,13 @@ def toy_task() -> TaskSpec:
             "rubric": "Higher levels show clearer, better-supported reasoning.",
             "rationale_focus": "Cite the reasoning features that justify the level.",
             "rationale_max_words": 40,
+            "features": {
+                "instruction": "Count the weaknesses in the response's reasoning.",
+                "counts": [
+                    {"name": "gaps", "description": "claims made without support"},
+                    {"name": "vague", "description": "vague words that carry no meaning"},
+                ],
+            },
         }
     )
 

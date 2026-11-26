@@ -1,0 +1,17 @@
+{{ task.persona }}
+
+{{ task.features.instruction }}
+{% if task.context %}
+
+## Context
+{{ task.context }}
+{% endif %}
+
+## What to count
+{% for c in task.features.counts %}
+- {{ c.name }}: {{ c.description }}
+{% endfor %}
+
+## Output
+Reply with a single JSON object of whole-number counts and nothing else:
+{{ "{" }}{% for c in task.features.counts %}"{{ c.name }}": <count>{% if not loop.last %}, {% endif %}{% endfor %}{{ "}" }}

@@ -12,7 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from guide_exemplars.paths import CONFIG_DIR
 
-KNOWN_METHODS = {"guide", "naive", "random", "knn", "vote_k"}
+# feature: LLM-counted evidence + ordinal model. hybrid: the same plus GUIDE's predicted score (needs guide).
+KNOWN_METHODS = {"guide", "naive", "random", "knn", "vote_k", "feature", "hybrid"}
 
 
 class Limits(BaseModel):
@@ -55,6 +56,10 @@ class Matrix(BaseModel):
         unknown = set(self.methods) - KNOWN_METHODS
         if unknown:
             raise ValueError(f"unknown methods {sorted(unknown)}; known: {sorted(KNOWN_METHODS)}")
+        if "hybrid" in self.methods and "guide" not in self.methods:
+            raise ValueError(
+                "the hybrid method combines GUIDE's predictions with features; add guide to methods"
+            )
 
     @classmethod
     def load(cls, name_or_path: str | Path) -> Matrix:

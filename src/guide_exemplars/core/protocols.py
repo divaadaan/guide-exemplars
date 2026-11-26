@@ -12,7 +12,7 @@ from typing import Literal, Protocol
 
 import numpy as np
 
-Purpose = Literal["grade", "rationale_plain", "rationale_disc", "serve", "check", "embed"]
+Purpose = Literal["grade", "rationale_plain", "rationale_disc", "features", "serve", "check", "embed"]
 
 
 class AbortRun(RuntimeError):

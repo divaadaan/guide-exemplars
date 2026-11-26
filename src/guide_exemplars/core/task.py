@@ -24,6 +24,39 @@ class LabelDef(BaseModel):
     description: str = ""
 
 
+class CountDef(BaseModel):
+    """One thing the feature extractor counts in a response, e.g. a kind of error."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    description: str = Field(min_length=1)
+
+
+class FeatureSpec(BaseModel):
+    """Optional: countable evidence for the feature grader (see ``core/feature_grader.py``).
+
+    An LLM counts each item in ``counts`` in a response, zero-shot. Counts become rates per ``per_words`` words
+    (raw counts when ``None``), and ``include_length`` adds log word count. A small ordinal model maps those
+    numbers to a score.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    instruction: str = Field(min_length=1)
+    counts: tuple[CountDef, ...] = Field(min_length=1)
+    per_words: int | None = Field(default=100, gt=0)
+    include_length: bool = True
+
+    @field_validator("counts")
+    @classmethod
+    def _unique_names(cls, v: tuple[CountDef, ...]) -> tuple[CountDef, ...]:
+        names = [c.name for c in v]
+        if len(set(names)) != len(names):
+            raise ValueError(f"duplicate count names in {names}")
+        return v
+
+
 class TaskSpec(BaseModel):
     """Everything the prompts need to know about a grading task."""
 
@@ -39,6 +72,7 @@ class TaskSpec(BaseModel):
     response_noun: str = "response"
     context: str | None = None
     rationale_max_words: int = Field(default=80, gt=0)
+    features: FeatureSpec | None = None
 
     @field_validator("labels", mode="before")
     @classmethod
@@ -63,7 +97,11 @@ class TaskSpec(BaseModel):
 
     def spec_hash(self) -> str:
         """Stable content hash. Changes whenever any prompt-relevant field changes."""
-        payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
+        data = self.model_dump(mode="json")
+        # Specs without features keep the hash they had before the field existed.
+        if data.get("features") is None:
+            data.pop("features", None)
+        payload = json.dumps(data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
     @classmethod

@@ -1,5 +1,6 @@
 """Benchmark runner: for each (task, seed), build the Phase-0 pool once, run GUIDE (and its ablations), fit
-the baselines on the same pool, and score every policy on the held-out test split with the same grader.
+the baselines on the same pool, and score every policy on the held-out test split with the same grader. The
+feature grader and the hybrid (feature grader plus GUIDE's predicted score) fit a small ordinal model on train.
 
 Layout::
 
@@ -30,6 +31,7 @@ from guide_exemplars import __version__
 from guide_exemplars.benchmark.bootstrap import bootstrap
 from guide_exemplars.benchmark.matrix import Matrix
 from guide_exemplars.core.events import Event
+from guide_exemplars.core.feature_grader import FeatureExtractor, OrdinalRidge, extraction_raw
 from guide_exemplars.core.grader import Grader
 from guide_exemplars.core.optimizer import GuideConfig, GuideOptimizer
 from guide_exemplars.core.pool import Pool
@@ -42,7 +44,7 @@ from guide_exemplars.data.presets import PreparedTask, Preset, load_prepared
 from guide_exemplars.llm.backbones import build_embedder, default_embedding_store, load_backbones
 from guide_exemplars.llm.budget import Budget, UsageMeter
 from guide_exemplars.paths import REPO_ROOT, RESULTS_DIR
-from guide_exemplars.runtime import Runtime, build_runtime, run_optimize
+from guide_exemplars.runtime import Runtime, build_runtime, estimate_features, run_optimize
 
 Log = Callable[[str], None]
 
@@ -74,6 +76,22 @@ def _git_state() -> dict[str, Any]:
 def _write_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+
+
+_FITTED = ("feature", "hybrid")
+
+
+def _load_exemplars(method_dir: Path) -> list[Exemplar]:
+    path = method_dir / "exemplars.json"
+    if not path.exists():
+        return []
+    sets = json.loads(path.read_text(encoding="utf-8"))
+    return [Exemplar.model_validate(e) for e in sets[0]] if sets else []
+
+
+def _ranks(preds: list[Prediction], scale: Any) -> np.ndarray:
+    """Predicted ranks as floats, NaN where the call failed (the ordinal model imputes those)."""
+    return np.array([np.nan if p.pred is None else scale.rank(p.pred) for p in preds], dtype=float)
 
 
 def estimate_matrix(matrix: Matrix) -> list[dict[str, Any]]:
@@ -112,16 +130,36 @@ def estimate_matrix(matrix: Matrix) -> list[dict[str, Any]]:
                 include_optimization=False,
             )
         )
-        rows.append(
-            {
-                "task": task_id,
-                "calls": sum(p.total_calls for p in parts),
-                "usd_low": sum(p.usd_low for p in parts),
-                "usd_high": sum(p.usd_high for p in parts),
-                "usd_hard_max": sum(p.usd_hard_max for p in parts),
-                "minutes": sum(p.est_minutes for p in parts),
-            }
-        )
+        row = {
+            "task": task_id,
+            "calls": sum(p.total_calls for p in parts),
+            "usd_low": sum(p.usd_low for p in parts),
+            "usd_high": sum(p.usd_high for p in parts),
+            "usd_hard_max": sum(p.usd_hard_max for p in parts),
+            "minutes": sum(p.est_minutes for p in parts),
+        }
+        extras: list[dict[str, float]] = []
+        if {"feature", "hybrid"} & set(matrix.methods) and prepared.spec.features is not None:
+            # One extraction per train and test item, shared by both methods through the response cache.
+            extras.append(estimate_features(prepared, backbone, [*prepared.train, *prepared.test]))
+            if "hybrid" in matrix.methods:
+                # GUIDE's set also grades the train split: one test-split pass, scaled by the split sizes.
+                one = estimate_for(prepared, backbone, base_cfg, n_test_static=1, include_optimization=False)
+                ratio = len(prepared.train) / max(1, len(prepared.test))
+                extras.append(
+                    {
+                        "calls": one.total_calls * ratio,
+                        "usd_low": one.usd_low * ratio,
+                        "usd_high": one.usd_high * ratio,
+                        "usd_hard_max": one.usd_hard_max * ratio,
+                        "minutes": one.est_minutes * ratio,
+                    }
+                )
+        for extra in extras:
+            for key in ("calls", "usd_low", "usd_high", "usd_hard_max", "minutes"):
+                row[key] += extra[key]
+        row["calls"] = round(row["calls"])
+        rows.append(row)
     return rows
 
 
@@ -323,6 +361,7 @@ class BenchmarkRunner:
         manifest["usage"] = self.meter.total.to_dict()
         manifest["usage_by_purpose"] = {k: v.to_dict() for k, v in self.meter.by_purpose.items()}
         manifest["spent_usd"] = self.budget.spent
+        self._carry_history(manifest)
         _write_json(self.out / "manifest.json", manifest)
         from guide_exemplars.benchmark.report import write_reports
 
@@ -336,6 +375,7 @@ class BenchmarkRunner:
         pool = await self._phase0(prepared, rt, seed, run_dir)
         k = self.m.k_default
 
+        guide_exemplars: list[Exemplar] = []
         guide_runs: list[tuple[str, dict[str, Any]]] = []
         if "guide" in self.m.methods:
             guide_runs.append(("guide", {}))
@@ -344,7 +384,9 @@ class BenchmarkRunner:
             method_dir = run_dir / method
             if (method_dir / "metrics.json").exists():
                 res = self._load_recorded(prepared, seed, method, method_dir)
-                k = res.k if method == "guide" else k
+                if method == "guide":
+                    k = res.k
+                    guide_exemplars = _load_exemplars(method_dir)
                 self.log(f"[{prepared.task_id} seed {seed}] {method}: recorded, skipped")
                 continue
             self.log(f"[{prepared.task_id} seed {seed}] {method}: optimizing ...")
@@ -362,6 +404,7 @@ class BenchmarkRunner:
                 continue
             if method == "guide":
                 k = len(result.exemplars)
+                guide_exemplars = list(result.exemplars)
             policy = StaticPolicy(method, tuple(result.exemplars))
             preds = await self._score(prepared, rt, policy)
             best = result.best
@@ -382,7 +425,7 @@ class BenchmarkRunner:
         knn_embedder = build_embedder(
             self.m.knn_embedder, store=default_embedding_store(), meter=self.meter, budget=self.budget
         )
-        for method in [m for m in self.m.methods if m != "guide"]:
+        for method in [m for m in self.m.methods if m not in ("guide", *_FITTED)]:
             method_dir = run_dir / method
             if (method_dir / "metrics.json").exists():
                 self._load_recorded(prepared, seed, method, method_dir)
@@ -403,3 +446,93 @@ class BenchmarkRunner:
             self.log(
                 f"[{prepared.task_id} seed {seed}] {method}: test acc {r.metrics['acc']['point']:.3f} (k={k})"
             )
+
+        for method in [m for m in _FITTED if m in self.m.methods]:
+            await self._run_fitted(prepared, rt, seed, run_dir / method, method, guide_exemplars)
+
+    # ---- feature grader and hybrid --------------------------------------------------------------
+
+    async def _run_fitted(
+        self,
+        prepared: PreparedTask,
+        rt: Runtime,
+        seed: int,
+        method_dir: Path,
+        method: str,
+        guide_exemplars: list[Exemplar],
+    ) -> None:
+        """Fit the ordinal model on train and score the test split.
+
+        ``feature`` uses only the LLM-counted evidence. ``hybrid`` adds GUIDE's predicted rank as a column. It is
+        fitted on train minus the exemplars' own items, which would otherwise be graded with themselves as demos.
+        """
+        prefix = f"[{prepared.task_id} seed {seed}] {method}"
+        if (method_dir / "metrics.json").exists():
+            self._load_recorded(prepared, seed, method, method_dir)
+            self.log(f"{prefix}: recorded, skipped")
+            return
+        if prepared.spec.features is None:
+            self.log(f"{prefix}: task {prepared.spec.name} defines no features; skipped")
+            return
+        if method == "hybrid" and not guide_exemplars:
+            self.log(f"{prefix}: no GUIDE exemplar set; skipped")
+            return
+        scale = prepared.spec.scale
+        prompts = PromptBuilder(prepared.spec)
+        extractor = FeatureExtractor(prompts, rt.llm)
+        shown = {e.item_id for e in guide_exemplars} if method == "hybrid" else set()
+        fit_items = [it for it in prepared.train if it.item_id not in shown]
+        test = prepared.test
+        self.log(f"{prefix}: extracting features ({len(fit_items)} train + {len(test)} test) ...")
+        fit_ex = await extractor.extract(fit_items)
+        test_ex = await extractor.extract(test)
+        X_fit = extractor.vectorize(fit_items, fit_ex)
+        X_test = extractor.vectorize(test, test_ex)
+        names = extractor.feature_names
+        if method == "hybrid":
+            self.log(f"{prefix}: grading train with GUIDE's exemplars ...")
+            grader = Grader(prompts, rt.llm, self._guide_cfg(0).grading_max_tokens)
+            fit_guide = await grader.grade(fit_items, guide_exemplars, purpose="grade")
+            test_guide = await self._score(prepared, rt, StaticPolicy("guide", tuple(guide_exemplars)))
+            X_fit = np.column_stack([_ranks(fit_guide, scale), X_fit])
+            X_test = np.column_stack([_ranks(test_guide, scale), X_test])
+            names = ["guide_score", *names]
+        model = OrdinalRidge(len(scale)).fit(X_fit, [scale.rank(it.label) for it in fit_items])
+        preds = [
+            Prediction(it.item_id, it.label, scale.label_at(int(r)), extraction_raw(ex))
+            for it, ex, r in zip(test, test_ex, model.predict(X_test), strict=True)
+        ]
+        extra = {
+            "fit_split": "train",
+            "n_fit": len(fit_items),
+            "features": names,
+            **model.describe(names),
+            "n_failed_extractions": sum(ex.counts is None for ex in [*fit_ex, *test_ex]),
+        }
+        k = len(guide_exemplars) if method == "hybrid" else 0
+        r = self._record(prepared, seed, method, [preds], method_dir, None, k, extra)
+        self.log(
+            f"{prefix}: test acc {r.metrics['acc']['point']:.3f}, QWK {r.metrics['qwk']['point']:.3f} "
+            f"(fit QWK {model.fit_qwk_:.3f})"
+        )
+
+    def _carry_history(self, manifest: dict[str, Any]) -> None:
+        """A resumed matrix keeps earlier runs' spend and provenance instead of overwriting them."""
+        path = self.out / "manifest.json"
+        if not path.exists():
+            manifest["spent_usd_total"] = manifest["spent_usd"]
+            return
+        prev = json.loads(path.read_text(encoding="utf-8"))
+        keys = (
+            "started_at",
+            "finished_at",
+            "spent_usd",
+            "git",
+            "matrix_hash",
+            "replay",
+            "usage",
+            "usage_by_purpose",
+        )
+        manifest["history"] = [*prev.get("history", []), {k: prev.get(k) for k in keys}]
+        earlier = prev.get("spent_usd_total", prev.get("spent_usd", 0.0))
+        manifest["spent_usd_total"] = earlier + manifest["spent_usd"]

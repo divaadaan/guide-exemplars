@@ -4,7 +4,7 @@
 # Ideas, Organization, Style, Conventions; columns rater{1,2}_trait4), checked against the Kaggle set 7 guide on
 # 2026-11-25. The persona, instruction, rubric and rationale fields are this repo's own framing.
 name: asap-aes-p7-conventions
-version: 2
+version: 3
 
 response_noun: essay
 
@@ -51,3 +51,22 @@ rationale_focus: >-
   organization and style. Never treat anonymization tokens as errors.
 
 rationale_max_words: 80
+
+# Evidence for the feature grader and the hybrid (core/feature_grader.py). An LLM counts both kinds of error,
+# zero-shot; the counts become rates per 100 words, plus log word count.
+features:
+  instruction: >-
+    Find the convention errors (spelling, grammar, usage, capitalization, punctuation) in the essay and sort
+    them into the two kinds below. Count every error once. Do not count anonymization tokens.
+  counts:
+    - name: recoverable
+      description: >-
+        a reader understands the intended word or sentence instantly, without rereading. Examples: "couldnt",
+        "definetly", a missing comma, lowercase "i", "alot".
+    - name: obstructive
+      description: >-
+        a reader has to stop, reread or guess to recover the meaning. Examples: "lack tose and tole her" for
+        "lactose intolerant", garbled or run-together sentences, a wrong word that changes the meaning, missing
+        words that make a sentence unclear.
+  per_words: 100
+  include_length: true

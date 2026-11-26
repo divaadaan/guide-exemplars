@@ -14,7 +14,7 @@ from guide_exemplars.benchmark.matrix import Matrix
 from guide_exemplars.benchmark.report import README_END, README_START, inject_readme
 from guide_exemplars.benchmark.runner import BenchmarkRunner, estimate_matrix
 from guide_exemplars.core.protocols import CacheMiss
-from guide_exemplars.data.presets import Preset, prepare
+from guide_exemplars.data.presets import Preset, load_prepared, prepare
 from support.toy import toy_items, toy_task
 
 
@@ -53,7 +53,7 @@ def matrix(preset_path: Path) -> Matrix:
             "backbone": "fake",
             "knn_embedder": "hash",
             "preset": str(preset_path),
-            "methods": ["guide", "naive", "random", "knn", "vote_k"],
+            "methods": ["guide", "naive", "random", "knn", "vote_k", "feature", "hybrid"],
             "random_draws": 2,
             "ablations": {"no_discriminative": {"phase2": False}},
             "guide": {
@@ -78,28 +78,47 @@ async def test_runner_produces_artifacts_and_replays(tmp_path: Path, toy_preset:
     out = tmp_path / "results"
     results = await BenchmarkRunner(m, out, log=lambda _s: None).run()
     methods = {r.method for r in results}
-    assert methods == {"guide", "guide-no_discriminative", "naive", "random", "knn", "vote_k"}
+    assert methods == {
+        "guide",
+        "guide-no_discriminative",
+        "naive",
+        "random",
+        "knn",
+        "vote_k",
+        "feature",
+        "hybrid",
+    }
     for name in ("summary.csv", "deltas.csv", "summary.md", "manifest.json"):
         assert (out / name).exists()
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["tasks"]["toy"]["split_hash"] and "sha" in manifest["git"]
     guide = next(r for r in results if r.method == "guide")
-    assert all(r.k == guide.k for r in results if not r.method.startswith("guide"))
+    assert all(r.k == guide.k for r in results if r.method in ("naive", "random", "knn", "vote_k"))
     random_r = next(r for r in results if r.method == "random")
     assert len(random_r.preds) == 2
+    feature = next(r for r in results if r.method == "feature")
+    hybrid = next(r for r in results if r.method == "hybrid")
+    assert feature.k == 0 and hybrid.k == guide.k
+    assert feature.extra["features"] == ["gaps_per_100w", "vague_per_100w", "log_words"]
+    assert hybrid.extra["features"][0] == "guide_score"
+    train_ids = {it.item_id for it in load_prepared(Preset.load(toy_preset)).train}
+    assert hybrid.extra["n_fit"] == feature.extra["n_fit"] - len(_guide_items(out) & train_ids)
+    assert manifest["spent_usd_total"] == manifest["spent_usd"] and "history" not in manifest
 
     # Second run over the same directory skips everything that is recorded.
     again = await BenchmarkRunner(m, out, log=lambda _s: None).run()
     assert {(r.method, r.metrics["acc"]["point"]) for r in again} == {
         (r.method, r.metrics["acc"]["point"]) for r in results
     }
+    resumed = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    assert len(resumed["history"]) == 1
+    assert resumed["spent_usd_total"] == pytest.approx(manifest["spent_usd"] + resumed["spent_usd"])
 
     # Replay into a fresh directory: cache-only, byte-identical summaries.
     replay_out = tmp_path / "replay"
     await BenchmarkRunner(m, replay_out, replay=True, log=lambda _s: None).run()
     assert (replay_out / "summary.csv").read_bytes() == (out / "summary.csv").read_bytes()
     assert (replay_out / "deltas.csv").read_bytes() == (out / "deltas.csv").read_bytes()
-
 
     # Report-only rebuild: same tables, manifest untouched, plus the majority reference and score counts.
     manifest_before = (out / "manifest.json").read_bytes()
@@ -123,6 +142,9 @@ def test_estimate_matrix_counts_every_method(toy_preset: Path) -> None:
     [row] = estimate_matrix(m)
     without_ablation = estimate_matrix(m.model_copy(update={"ablations": {}}))[0]
     assert row["calls"] > without_ablation["calls"] > 0
+    no_fitted = m.model_copy(update={"methods": ["guide", "naive", "random", "knn", "vote_k"]})
+    no_hybrid = m.model_copy(update={"methods": [x for x in m.methods if x != "hybrid"]})
+    assert row["calls"] > estimate_matrix(no_hybrid)[0]["calls"] > estimate_matrix(no_fitted)[0]["calls"]
     assert row["usd_low"] <= row["usd_high"] <= row["usd_hard_max"]
 
 
@@ -135,3 +157,13 @@ def test_inject_readme(tmp_path: Path) -> None:
     plain = tmp_path / "plain.md"
     plain.write_text("no markers", encoding="utf-8")
     assert not inject_readme(plain, ["x"])
+
+
+def _guide_items(out: Path) -> set[str]:
+    [sets] = [json.loads(p.read_text(encoding="utf-8")) for p in out.glob("toy/seed0/guide/exemplars.json")]
+    return {e["item_id"] for e in sets[0]}
+
+
+def test_hybrid_needs_guide(toy_preset: Path) -> None:
+    with pytest.raises(ValueError, match="add guide"):
+        Matrix.model_validate({**matrix(toy_preset).model_dump(), "methods": ["naive", "hybrid"]})

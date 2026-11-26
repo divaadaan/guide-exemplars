@@ -90,6 +90,24 @@ def parse_grade(text: str, scale: LabelScale) -> GradeParse:
     return GradeParse(None, "", "no parsable label in reply")
 
 
+def parse_counts(text: str, names: Sequence[str]) -> dict[str, int] | None:
+    """Whole, non-negative counts for every name, or ``None`` when any is missing or malformed."""
+    obj = _load_json_object(text)
+    if obj is None:
+        return None
+    out: dict[str, int] = {}
+    for name in names:
+        value = obj.get(name)
+        try:
+            number = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+        if not number >= 0 or number != int(number):
+            return None
+        out[name] = int(number)
+    return out
+
+
 def parse_rationale(text: str) -> str | None:
     obj = _load_json_object(text)
     if obj is not None:
@@ -112,6 +130,19 @@ class PromptBuilder:
         )
         self._grade_user = _ENV.get_template("grade_user.j2")
         self._rationale_user = _ENV.get_template("rationale_user.j2")
+        self._features_system = (
+            _ENV.get_template("features_system.j2").render(task=task) if task.features is not None else None
+        )
+        self._features_user = _ENV.get_template("features_user.j2")
+
+    @property
+    def features_system(self) -> str:
+        if self._features_system is None:
+            raise ValueError(f"task {self.task.name!r} defines no features")
+        return self._features_system
+
+    def features_user(self, text: str) -> str:
+        return self._features_user.render(task=self.task, text=text)
 
     @property
     def grade_system(self) -> str:

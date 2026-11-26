@@ -71,6 +71,8 @@ class GradingSimulator:
         user = req.messages[-1][1]
         if req.purpose.startswith("rationale"):
             return self._rationale(req, user)
+        if req.purpose == "features":
+            return self._features(req, user)
         target = _between(user, TAG_TARGET) or ""
         gold = self.gold.get(" ".join(target.split()))
         if gold is None:
@@ -94,6 +96,20 @@ class GradingSimulator:
                 step = -step
             label = self.scale.label_at(r + step)
         return json.dumps({"analysis": "simulated grader", "label": label})
+
+    def _features(self, req: LLMRequest, user: str) -> str:
+        """Counts that fall with the gold level (plus deterministic noise), so a feature grader has signal."""
+        names = re.findall(r'"([a-z][a-z0-9_]*)": <count>', req.messages[0][1])
+        target = _between(user, TAG_TARGET) or ""
+        gold = self.gold.get(" ".join(target.split()))
+        rank = self.scale.rank(gold) if gold is not None else (len(self.scale) - 1) / 2
+        gap = len(self.scale) - 1 - rank
+        words = max(1, len(target.split()))
+        counts = {}
+        for i, name in enumerate(names):
+            rate = gap * (1.5 + i) + 2.0 * _unit(request_hash(req, f"features-{name}"))
+            counts[name] = round(rate * words / 100)
+        return json.dumps(counts)
 
     def _rationale(self, req: LLMRequest, user: str) -> str:
         text = _between(user, TAG_EXPLAIN) or ""

@@ -158,6 +158,45 @@ def estimate_for(
     )
 
 
+def estimate_features(
+    prepared: PreparedTask, backbone: BackboneConfig, items: Sequence[Item], max_tokens: int = 100
+) -> dict[str, float]:
+    """Cost of one zero-shot feature-extraction call per item (shared system prompt, cached after the first)."""
+    from guide_exemplars.core.estimate import CallGroup
+    from guide_exemplars.core.prompts import PromptBuilder
+    from guide_exemplars.core.protocols import FREE
+
+    if not items or prepared.spec.features is None:
+        return {"calls": 0, "usd_low": 0.0, "usd_high": 0.0, "usd_hard_max": 0.0, "minutes": 0.0}
+    prices = PriceTable.load()
+    price = prices.lookup(backbone.model)
+    if backbone.self_hosted or price is None:
+        price = FREE
+    count = TokenCounter().count
+    prompts = PromptBuilder(prepared.spec)
+    system = count(prompts.features_system) + 4
+    sample = items[:200]
+    user = sum(count(prompts.features_user(it.text)) for it in sample) / len(sample)
+    group = CallGroup(
+        calls=len(items),
+        input_tokens_per_call=system + user,
+        output_tokens_per_call=6.0 * len(prepared.spec.features.counts) + 4,
+        output_tokens_max=max_tokens,
+        cacheable_prefix_tokens=system if system >= 1024 else 0.0,  # providers only cache long prefixes
+        batch_size=len(items),
+    )
+    minutes = len(items) * 1.5 / max(1, backbone.max_concurrency) / 60
+    if backbone.tpm_limit and backbone.kind != "fake":
+        minutes = max(minutes, len(items) * (system + user + max_tokens) / backbone.tpm_limit)
+    return {
+        "calls": len(items),
+        "usd_low": group.usd(price, cached=True),
+        "usd_high": group.usd(price, cached=False),
+        "usd_hard_max": group.usd(price, cached=False, worst_case=True),
+        "minutes": minutes,
+    }
+
+
 @dataclass
 class OptimizeOutcome:
     result: GuideResult

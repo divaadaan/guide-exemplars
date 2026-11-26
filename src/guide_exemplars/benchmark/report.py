@@ -28,7 +28,7 @@ def _fmt(x: float | None, digits: int = 3) -> str:
 
 def _method_order(methods: list[str]) -> list[str]:
     base = ["guide", *sorted(m for m in methods if m.startswith("guide-"))]
-    rest = [m for m in ("naive", "random", "knn", "vote_k") if m in methods]
+    rest = [m for m in ("naive", "random", "knn", "vote_k", "feature", "hybrid") if m in methods]
     return [m for m in base if m in methods] + rest
 
 
@@ -84,7 +84,7 @@ def render_markdown(
     lines.append(
         f"Backbone `{bb.get('model', matrix.backbone)}`, seeds {matrix.seeds}, test split, "
         f"{int(matrix.bootstrap.ci * 100)}% percentile-bootstrap CIs (B={matrix.bootstrap.B}). "
-        f"Spend ${manifest.get('spent_usd', 0):.2f}."
+        f"Spend ${manifest.get('spent_usd_total', manifest.get('spent_usd', 0)):.2f}."
     )
     lines.append("")
     by_task: dict[str, list[MethodResult]] = defaultdict(list)
@@ -118,16 +118,17 @@ def render_markdown(
         lines += _reference_lines(rs, methods)
         task_deltas = [d for d in delta_rows if d["task"] == task]
         if task_deltas:
-            lines.append(
-                "Paired GUIDE - method (accuracy): "
-                + "; ".join(
-                    f"{d['vs']} {d['acc_delta']:+.3f} [{d['acc_lo']:+.3f}, {d['acc_hi']:+.3f}], "
-                    f"P(Δ>0)={d['acc_p_gt0']:.2f}"
-                    for d in task_deltas
-                    if d["seed"] == matrix.seeds[0]
+            for metric in ("acc", "qwk"):
+                lines.append(
+                    f"Paired GUIDE - method ({'accuracy' if metric == 'acc' else 'QWK'}): "
+                    + "; ".join(
+                        f"{d['vs']} {d[f'{metric}_delta']:+.3f} [{d[f'{metric}_lo']:+.3f}, {d[f'{metric}_hi']:+.3f}], "
+                        f"P(Δ>0)={d[f'{metric}_p_gt0']:.2f}"
+                        for d in task_deltas
+                        if d["seed"] == matrix.seeds[0]
+                    )
                 )
-            )
-            lines.append("")
+                lines.append("")
     return "\n".join(lines) + "\n"
 
 
