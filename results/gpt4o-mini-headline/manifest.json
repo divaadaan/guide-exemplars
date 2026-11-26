@@ -1,7 +1,7 @@
 {
   "matrix": {
     "name": "gpt4o-mini-headline",
-    "description": "GUIDE vs Naive / Random / KNN-SBERT / Vote-k on aes-p7 with gpt-4o-mini (seed 0).",
+    "description": "GUIDE vs Naive / Random / KNN-SBERT / Vote-k, plus feature grader and hybrid, on aes-p7 with gpt-4o-mini (seed 0).",
     "backbone": "gpt4o-mini",
     "embedder": null,
     "knn_embedder": "st/all-MiniLM-L6-v2",
@@ -15,7 +15,9 @@
       "naive",
       "random",
       "knn",
-      "vote_k"
+      "vote_k",
+      "feature",
+      "hybrid"
     ],
     "random_draws": 5,
     "ablations": {},
@@ -33,11 +35,11 @@
     },
     "max_cost_usd": 35.0
   },
-  "matrix_hash": "fe3f9429297d3a68",
+  "matrix_hash": "18c8941d97e33415",
   "package_version": "0.1.0",
   "python": "3.12.10",
   "git": {
-    "sha": "dda8aeeed73749dc5c93bee00cb2f3712b318e16",
+    "sha": "3956edac181795a640d3914a76fb1a6357cc4591",
     "dirty": true
   },
   "backbone": {
@@ -61,7 +63,7 @@
     "embedder_api_key_env": "OPENAI_API_KEY"
   },
   "replay": false,
-  "started_at": 1795631766.071521,
+  "started_at": 1795711502.8539429,
   "tasks": {
     "aes-p7": {
       "split_hash": "71fd5b24aa2630d9",
@@ -76,40 +78,80 @@
       }
     }
   },
-  "finished_at": 1795639454.63444,
+  "finished_at": 1795711630.1911924,
   "usage": {
-    "calls": 56273,
-    "cache_hits": 6761,
-    "prompt_tokens": 222402685,
-    "cached_prompt_tokens": 187445632,
-    "completion_tokens": 3179639,
-    "cost_usd": 21.166138089999848
+    "calls": 3694,
+    "cache_hits": 1539,
+    "prompt_tokens": 3981461,
+    "cached_prompt_tokens": 2888320,
+    "completion_tokens": 73441,
+    "cost_usd": 0.4246597500000002
   },
   "usage_by_purpose": {
-    "grade": {
-      "calls": 52559,
-      "cache_hits": 4907,
-      "prompt_tokens": 213138929,
-      "cached_prompt_tokens": 179989632,
-      "completion_tokens": 2986181,
-      "cost_usd": 20.263325549999884
-    },
-    "rationale_disc": {
-      "calls": 3708,
-      "cache_hits": 1854,
-      "prompt_tokens": 8928174,
-      "cached_prompt_tokens": 7456000,
-      "completion_tokens": 193458,
-      "cost_usd": 0.8961009000000002
-    },
-    "embed": {
-      "calls": 6,
-      "cache_hits": 0,
-      "prompt_tokens": 335582,
+    "features": {
+      "calls": 2466,
+      "cache_hits": 1228,
+      "prompt_tokens": 710763,
       "cached_prompt_tokens": 0,
-      "completion_tokens": 0,
-      "cost_usd": 0.00671164
+      "completion_tokens": 18570,
+      "cost_usd": 0.11775645000000003
+    },
+    "grade": {
+      "calls": 1228,
+      "cache_hits": 311,
+      "prompt_tokens": 3270698,
+      "cached_prompt_tokens": 2888320,
+      "completion_tokens": 54871,
+      "cost_usd": 0.30690329999999993
     }
   },
-  "spent_usd": 21.166138089999848
+  "spent_usd": 0.4246597500000002,
+  "history": [
+    {
+      "started_at": 1795631766.071521,
+      "finished_at": 1795639454.63444,
+      "spent_usd": 21.166138089999848,
+      "git": {
+        "sha": "dda8aeeed73749dc5c93bee00cb2f3712b318e16",
+        "dirty": true
+      },
+      "matrix_hash": "fe3f9429297d3a68",
+      "replay": false,
+      "usage": {
+        "calls": 56273,
+        "cache_hits": 6761,
+        "prompt_tokens": 222402685,
+        "cached_prompt_tokens": 187445632,
+        "completion_tokens": 3179639,
+        "cost_usd": 21.166138089999848
+      },
+      "usage_by_purpose": {
+        "grade": {
+          "calls": 52559,
+          "cache_hits": 4907,
+          "prompt_tokens": 213138929,
+          "cached_prompt_tokens": 179989632,
+          "completion_tokens": 2986181,
+          "cost_usd": 20.263325549999884
+        },
+        "rationale_disc": {
+          "calls": 3708,
+          "cache_hits": 1854,
+          "prompt_tokens": 8928174,
+          "cached_prompt_tokens": 7456000,
+          "completion_tokens": 193458,
+          "cost_usd": 0.8961009000000002
+        },
+        "embed": {
+          "calls": 6,
+          "cache_hits": 0,
+          "prompt_tokens": 335582,
+          "cached_prompt_tokens": 0,
+          "completion_tokens": 0,
+          "cost_usd": 0.00671164
+        }
+      }
+    }
+  ],
+  "spent_usd_total": 21.590797839999848
 }

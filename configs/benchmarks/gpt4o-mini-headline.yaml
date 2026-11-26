@@ -1,12 +1,14 @@
-# The single paid run: paper-parity backbone on ASAP-AES prompt 7 (full split), GUIDE vs the four baselines.
+# The paid headline run: gpt-4o-mini on ASAP-AES prompt 7 (full split). GUIDE vs the four exemplar baselines, plus
+# the feature grader and the hybrid (feature grader + GUIDE's predicted score). Recorded methods are skipped on a
+# re-run, so adding a method only pays for that method.
 # Check the cost first with `guide benchmark gpt4o-mini-headline --dry-run`.
 name: gpt4o-mini-headline
-description: GUIDE vs Naive / Random / KNN-SBERT / Vote-k on aes-p7 with gpt-4o-mini (seed 0).
+description: GUIDE vs Naive / Random / KNN-SBERT / Vote-k, plus feature grader and hybrid, on aes-p7 with gpt-4o-mini (seed 0).
 backbone: gpt4o-mini
 knn_embedder: st/all-MiniLM-L6-v2
 preset: aes-p7
 seeds: [0]
-methods: [guide, naive, random, knn, vote_k]
+methods: [guide, naive, random, knn, vote_k, feature, hybrid]
 random_draws: 5
 ablations: {}
 guide: {}

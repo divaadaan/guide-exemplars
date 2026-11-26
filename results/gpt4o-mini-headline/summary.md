@@ -1,6 +1,6 @@
 ### Benchmark `gpt4o-mini-headline`
 
-Backbone `openai/gpt-4o-mini`, seeds [0], test split, 95% percentile-bootstrap CIs (B=2000). Spend $21.17.
+Backbone `openai/gpt-4o-mini`, seeds [0], test split, 95% percentile-bootstrap CIs (B=2000). Spend $21.59.
 
 **aes-p7** (test n=311; human rater1 vs rater2: acc 0.624, QWK 0.599)
 
@@ -11,6 +11,8 @@ Backbone `openai/gpt-4o-mini`, seeds [0], test split, 95% percentile-bootstrap C
 | random | 10 | 0.488 [0.442, 0.536] | 0.315 [0.252, 0.376] | 0.457 [0.413, 0.500] | 0.055 [0.035, 0.076] |
 | knn | 10 | 0.514 [0.460, 0.569] | 0.358 [0.286, 0.431] | 0.460 [0.405, 0.514] | 0.026 [0.010, 0.045] |
 | vote_k | 10 | 0.376 [0.328, 0.434] | 0.152 [0.093, 0.213] | 0.514 [0.460, 0.569] | 0.109 [0.074, 0.145] |
+| feature | 0 | 0.585 [0.531, 0.640] | 0.590 [0.510, 0.659] | 0.405 [0.350, 0.463] | 0.010 [0.000, 0.023] |
+| hybrid | 10 | 0.630 [0.579, 0.685] | 0.597 [0.509, 0.670] | 0.357 [0.302, 0.408] | 0.013 [0.003, 0.026] |
 
 Reference: always predicting the most common score (level 2) gives accuracy 0.579 and QWK 0.
 
@@ -24,6 +26,10 @@ Predicted score counts on the test split (mean per draw for multi-draw methods):
 | random | 7.2 | 145 | 157.8 | 1 | 0 |
 | knn | 3 | 127 | 180 | 1 | 0 |
 | vote_k | 1 | 214 | 95 | 1 | 0 |
+| feature | 12 | 72 | 135 | 92 | 0 |
+| hybrid | 8 | 82 | 144 | 77 | 0 |
 
-Paired GUIDE - method (accuracy): naive +0.222 [+0.161, +0.280], P(Δ>0)=1.00; random +0.132 [+0.087, +0.177], P(Δ>0)=1.00; knn +0.106 [+0.055, +0.161], P(Δ>0)=1.00; vote_k +0.244 [+0.180, +0.305], P(Δ>0)=1.00
+Paired GUIDE - method (accuracy): naive +0.222 [+0.161, +0.280], P(Δ>0)=1.00; random +0.132 [+0.087, +0.177], P(Δ>0)=1.00; knn +0.106 [+0.055, +0.161], P(Δ>0)=1.00; vote_k +0.244 [+0.180, +0.305], P(Δ>0)=1.00; feature +0.035 [-0.042, +0.109], P(Δ>0)=0.79; hybrid -0.010 [-0.080, +0.061], P(Δ>0)=0.37
+
+Paired GUIDE - method (QWK): naive +0.147 [+0.073, +0.220], P(Δ>0)=1.00; random +0.066 [+0.006, +0.121], P(Δ>0)=0.98; knn +0.022 [-0.055, +0.098], P(Δ>0)=0.71; vote_k +0.228 [+0.145, +0.308], P(Δ>0)=1.00; feature -0.210 [-0.300, -0.119], P(Δ>0)=0.00; hybrid -0.216 [-0.294, -0.135], P(Δ>0)=0.00
 

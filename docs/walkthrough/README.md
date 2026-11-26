@@ -2,18 +2,23 @@
 
 > **Which ten graded examples should an LLM see before it grades an essay?**
 
-guide-exemplars is an independent implementation of GUIDE (Chu et al., 2026,
-[arXiv:2603.00465](https://arxiv.org/abs/2603.00465)): a search for the small set of scored examples that makes an
-LLM grade most accurately against a rubric. It looks for *boundary pairs*, essays that read alike but sit one score
-apart, and rewrites each example's rationale to say why it earns its score and not the neighbouring one. The result
-is a frozen, versioned example set behind a grading endpoint. It ships as a Python library, a CLI and a FastAPI
-service with a live dashboard.
+guide-exemplars grades responses against an ordinal rubric with an LLM, and has two parts:
+
+- **An exemplar search.** It finds the small set of scored examples that makes the LLM grade most accurately. It
+  looks for *boundary pairs*, essays that read alike but sit one score apart, and rewrites each example's rationale
+  to say why it earns its score and not the neighbouring one. The search adapts GUIDE (Chu et al., 2026,
+  [arXiv:2603.00465](https://arxiv.org/abs/2603.00465)).
+- **A feature grader.** An LLM counts the evidence the rubric cares about, and a small ordinal model turns the
+  counts into a score. The **hybrid** feeds it the exemplar grader's prediction as well.
+
+The results are a frozen, versioned example set behind a grading endpoint, and a fitted model. It ships as a Python
+library, a CLI and a FastAPI service with a live dashboard.
 
 Every screenshot below was captured headlessly from a **real `gpt-4o-mini` job** by
 [`scripts/screenshots.py`](../../scripts/screenshots.py). The job runs on a bundled set of **synthetic** grade 7
 essays ([`configs/demo-data/`](../../configs/demo-data/)): the benchmark data is a Kaggle competition set that can't
 be redistributed. The script refuses to capture any job whose dataset isn't the synthetic one, so no real student
-essay can appear in a frame. The benchmark numbers in [section 7](#7--how-its-evaluated) come from the real data.
+essay can appear in a frame. The benchmark numbers in [section 8](#8--how-its-evaluated) come from the real data.
 
 **Contents:**
 [1 · The dashboard](#1--the-dashboard) ·
@@ -22,7 +27,8 @@ essay can appear in a frame. The benchmark numbers in [section 7](#7--how-its-ev
 [4 · Boundary pairs](#4--boundary-pairs) ·
 [5 · Grading with the set](#5--the-frozen-set-and-grading-with-it) ·
 [6 · The service underneath](#6--the-service-underneath) ·
-[7 · How it's evaluated](#7--how-its-evaluated)
+[7 · Counting evidence](#7--counting-evidence-the-feature-grader-and-the-hybrid) ·
+[8 · How it's evaluated](#8--how-its-evaluated)
 
 ---
 
@@ -89,23 +95,22 @@ flowchart LR
 ![Search progress chart](img/03-search-progress.png)
 
 Each dot is one candidate set scored on 30 validation essays; the line is the best so far, and dashed lines mark
-the rounds. The objective, from the paper, is a randomly weighted mix of accuracy, set size and contrastive
-coverage, re-weighted at every step:
+the rounds. The objective is a randomly weighted mix of accuracy, set size and contrastive coverage, re-weighted at
+every step:
 
 ```
 g(E) = max(w1 · (Acc(E) − Acc*), w2 · (−|E|)) + w3 · C(E),   w1 ~ U(0.25, 1), w2 = 0.8(1 − w1), w3 = 0.2(1 − w1)
 ```
 
-> **Why the paper's raw −|E|?** It's tempting to "normalize" the size term by dividing it by the maximum set size.
-> That shrinks it until it outweighs accuracy inside the `max`, and the search starts trading accuracy for small
-> sets. With raw sizes (4–16) the size term only wins for sets far behind the best, which is the intended
-> behaviour. Tests pin both cases down ([`tests/unit/test_objective.py`](../../tests/unit/test_objective.py)).
+> **Why a raw −|E|?** It's tempting to "normalize" the size term by dividing it by the maximum set size. That
+> shrinks it until it outweighs accuracy inside the `max`, and the search starts trading accuracy for small sets.
+> With raw sizes (4–16) the size term only wins for sets far behind the best, which is the intended behaviour.
+> Tests pin both cases down ([`tests/unit/test_objective.py`](../../tests/unit/test_objective.py)).
 >
-> Where a literal reading of the paper works poorly, the improved choice is the default. One example: describing
-> a set to the GP as a membership vector over a 512-item pool leaves the GP near its prior after ~32
-> observations, so expected improvement degenerates into random search; set-level features (mean embedding,
-> score histogram, size) generalize to unseen sets. The README's
-> [fidelity section](../../README.md#fidelity-to-the-paper) lists each choice.
+> **How the GP sees a set.** A set is described by its mean embedding, its score histogram and its size, not by
+> which pool items it contains. With ~32 observations per round over a 512-item pool, a membership vector leaves
+> the GP near its prior, and expected improvement degenerates into random search. Set-level features generalize to
+> sets it hasn't seen. The README's [design choices](../../README.md#how-it-works) list the others.
 
 ## 4 · Boundary pairs
 
@@ -210,8 +215,7 @@ erDiagram
 
 > **Why a rate limiter and a burst stop?** The first attempt at the headline benchmark broke them in. The account's
 > limit for `gpt-4o-mini` is 2M tokens per minute; one GUIDE evaluation sends ~2.4M tokens in about 30 seconds.
-> After the SDK's retries ran out, each failed call was scored as a wrong answer, as the paper prescribes for
-> failures. Failed calls per evaluation went **0, 0, 0, 0, 0, 67, 148, 165, 181** (of 311), and the search was being
+> After the SDK's retries ran out, each failed call was scored as a wrong answer, by design. Failed calls per evaluation went **0, 0, 0, 0, 0, 67, 148, 165, 181** (of 311), and the search was being
 > steered by the provider, not by the examples. The run was stopped at $3.23.
 >
 > The fix has three parts. A token-bucket limiter shared per model paces calls to 90% of the limit. An evaluation
@@ -220,54 +224,143 @@ erDiagram
 > failure count shows up immediately. All 160 evaluations of the rerun had zero failed calls, and the cache meant
 > the first attempt's successful calls were not paid for twice.
 
-## 7 · How it's evaluated
+## 7 · Counting evidence: the feature grader and the hybrid
+
+The exemplar grader asks the LLM for a holistic judgement. The feature grader asks a narrower question that LLMs
+answer more reliably: count things. The task spec says what to count:
+
+```yaml
+features:
+  instruction: >-
+    Find the convention errors (spelling, grammar, usage, capitalization, punctuation) in the essay and sort
+    them into the two kinds below. Count every error once. Do not count anonymization tokens.
+  counts:
+    - name: recoverable
+      description: >-
+        a reader understands the intended word or sentence instantly, without rereading. Examples: "couldnt",
+        "definetly", a missing comma, lowercase "i", "alot".
+    - name: obstructive
+      description: >-
+        a reader has to stop, reread or guess to recover the meaning. Examples: "lack tose and tole her" for
+        "lactose intolerant", garbled or run-together sentences, a wrong word that changes the meaning, ...
+  per_words: 100
+  include_length: true
+```
+
+The two kinds follow how a reader experiences errors. A slip the reader fixes without noticing costs less than one
+that blocks the meaning.
+
+```mermaid
+flowchart LR
+    R["essay"] --> X["zero-shot LLM call<br/>recoverable 7, obstructive 2"]
+    X --> F["rates per 100 words<br/>+ log word count"]
+    S[["frozen exemplar set"]] -->|"predicted score<br/>(hybrid only)"| M
+    F --> M["ridge regression<br/>+ QWK-fitted cut points"]
+    M --> Y["score 0–3"]
+```
+
+1. **Counts.** Each response gets one call at temperature 0, which returns the counts as JSON.
+2. **Features.** The counts become rates per 100 words, so a long essay isn't penalized for having more errors in
+   total, and log word count is added.
+3. **Score.** A ridge regression, fitted on the training split, maps the features to a continuous score. Cut
+   points turn that score into levels. They start where they reproduce the training split's score distribution,
+   then move one at a time (coordinate ascent) to maximize QWK on train.
+4. **Hybrid.** The hybrid adds the exemplar grader's predicted score as one more column. It needs one grading pass
+   over train with the frozen set: 917 essays, leaving out the exemplars' own, for $0.31 with `gpt-4o-mini`.
+
+Extracting features for all 1,238 train and test essays cost **$0.12**. Each method's `metrics.json` keeps its
+standardized coefficients:
+
+| Feature | Feature grader | Hybrid |
+|---|---:|---:|
+| Recoverable errors per 100 words | −0.218 | −0.176 |
+| Obstructive errors per 100 words | −0.025 | +0.020 |
+| Log word count | +0.181 | +0.180 |
+| Exemplar grader's score | | +0.121 |
+
+Error density and length carry the score. Once density is known, the kind of error adds little on this data. That
+is partly because `gpt-4o-mini`'s obstructive counts are noisy: it finds close to four per essay even in essays
+scored 3. The exemplar grader's prediction adds information the counts don't have, as the next section shows.
+
+## 8 · How it's evaluated
 
 The headline benchmark: `gpt-4o-mini` grading ASAP-AES prompt 7 on Conventions (0–3), 927 train / 311 validation /
-311 test essays. GUIDE is compared with four other ways of choosing 10 examples, all drawn from the same candidate
-pool and scored on the same held-out test split, which no method sees during selection:
+311 test essays. The exemplar grader (GUIDE) is compared with four other ways of choosing 10 examples, all drawn
+from the same candidate pool:
 
 - **Naive**: a fixed, score-balanced set.
 - **Random**: 5 random draws, averaged.
 - **KNN-SBERT**: the 10 training essays most similar to each test essay.
 - **Vote-k**: a diverse, representative set.
 
-| Method | Test accuracy [95% CI] | QWK | Errors of 2+ levels |
-|---|---:|---:|---:|
-| **GUIDE** | **0.621** [0.566, 0.675] | **0.380** | **1.6%** |
-| KNN-SBERT | 0.514 [0.460, 0.569] | 0.358 | 2.6% |
-| Random | 0.488 [0.442, 0.536] | 0.315 | 5.5% |
-| Naive | 0.399 [0.347, 0.453] | 0.234 | 11.6% |
-| Vote-k | 0.376 [0.328, 0.434] | 0.152 | 10.9% |
-| *Human rater 1 vs rater 2* | *0.624* | *0.599* | |
-| *Always predict "2"* | *0.579* | *0* | |
+It is also compared with the feature grader and the hybrid. Every method is scored on the same held-out test
+split, which none of them sees while it is selected or fitted.
 
-GUIDE's accuracy gain over every baseline is significant (paired bootstrap over test essays, B = 2000):
-**+0.106** over KNN-SBERT [+0.055, +0.161], +0.132 over Random, +0.222 over Naive, +0.244 over Vote-k. The whole
-matrix cost **$21.17**; GUIDE's search took 122 minutes.
+| Method | Test accuracy [95% CI] | QWK [95% CI] | Errors of 2+ levels | Predicted 3s (64 gold) |
+|---|---:|---:|---:|---:|
+| **Hybrid** | **0.630** [0.579, 0.685] | **0.597** [0.509, 0.670] | 1.3% | 77 |
+| Exemplar grader (GUIDE) | 0.621 [0.566, 0.675] | 0.380 [0.291, 0.465] | 1.6% | 3 |
+| Feature grader | 0.585 [0.531, 0.640] | 0.590 [0.510, 0.659] | 1.0% | 92 |
+| KNN-SBERT | 0.514 [0.460, 0.569] | 0.358 [0.286, 0.431] | 2.6% | 1 |
+| Random | 0.488 [0.442, 0.536] | 0.315 [0.252, 0.376] | 5.5% | 1 |
+| Naive | 0.399 [0.347, 0.453] | 0.234 [0.161, 0.308] | 11.6% | 2 |
+| Vote-k | 0.376 [0.328, 0.434] | 0.152 [0.093, 0.213] | 10.9% | 1 |
+| *Human rater 1 vs rater 2* | *0.624* | *0.599* | | |
+| *Always predict "2"* | *0.579* | *0* | | *0* |
+
+Paired bootstrap over test essays (B = 2000):
+
+- **Accuracy, exemplar grader vs other example sets.** It beats every other way of choosing examples:
+  **+0.106** over KNN-SBERT [+0.055, +0.161], +0.132 over Random, +0.222 over Naive, +0.244 over Vote-k.
+- **QWK, hybrid vs exemplar grader.** The hybrid is better by **+0.216** [+0.135, +0.294] and as accurate
+  (+0.010 [−0.061, +0.080]).
+- **Hybrid vs feature grader.** The hybrid is more accurate by **+0.045** [+0.006, +0.080], with the same QWK
+  (+0.007 [−0.032, +0.043]).
+
+The matrix cost **$21.59** in total: $21.17 for the exemplar search, the baselines and test scoring, and $0.42 for
+the feature grader and the hybrid. The search took 122 minutes.
+
+**Why the exemplar grader almost never gives a 3.** It predicted 3 for 3 of 64 essays that earned one, and no
+example set did better. A side analysis on the validation split, outside the benchmark matrix, found that the
+limit is the model, not the examples:
+
+- The search evaluated 160 sets with zero to seven 3s among their examples. The median set predicted a 3 once in
+  311 essays, and sets with more 3s did not predict more of them.
+- `gpt-4o-mini`'s label probabilities give essays scored 3 the same expected score as essays scored 2 (1.87 both),
+  so no cut point can separate them. Rubric notes such as "a 3 does not need to be error-free" didn't help either.
+- On a stratified half of the validation split, `gpt-4o` does separate them. Its expected score ranks a 3 above a
+  2 with AUC 0.72, against 0.54 for `gpt-4o-mini` on the same essays. That makes it a model-size limit.
+- Human 3s are longer than 2s (median ~200 words against ~150) and have fewer errors per word but not fewer in
+  total. A holistic grader reads a long, fluent essay with ten slips as worse than a short one with six. Rates per
+  100 words don't make that mistake.
 
 What the numbers do and don't show:
 
-- **The labels are skewed.** 180 of 311 test essays score 2, so always answering "2" gets 0.579. GUIDE matches the
-  human raters' agreement with each other, but much of that level comes from the imbalance.
-- **No method recognizes a 3.** Of 64 essays scored 3, GUIDE predicted 3 three times and the baselines one to five
-  times. `gpt-4o-mini` is consistently harsher than the human raters on this trait.
-- **The gain is mostly calibration.** With similar-essay examples the model calls 127 essays a "1" (65 are); with
-  GUIDE's set it calls 73 a "1". That correction drives the accuracy gain and the drop in large errors.
-- **On QWK, GUIDE vs KNN-SBERT is not significant** (+0.022 [−0.055, +0.098]), and every method's QWK is far below
-  the human 0.599.
+- **The labels are skewed.** 180 of 311 test essays score 2, so always answering "2" gets 0.579 accuracy. QWK,
+  which credits getting the order right, is the better guide here.
+- **The hybrid matches the human raters' agreement with each other** on both accuracy and QWK. This is one prompt,
+  one trait and one seed, though, and the cut points are tuned for QWK on train.
+- **The feature grader alone is nearly free.** It costs one short call per essay and needs no search, which makes it
+  a strong baseline for any rubric whose evidence can be counted.
 
 The report prints the majority-class line and per-method score counts next to the main table for this reason
 ([`results/gpt4o-mini-headline/summary.md`](../../results/gpt4o-mini-headline/summary.md)).
 
-**Checking the run.** `manifest.json` records the git SHA, package version, the full matrix config, split hash,
-raw-data checksum, and calls, tokens and dollars by purpose. Every LLM response is cached, and
-`guide benchmark gpt4o-mini-headline --replay` rebuilds the tables from the cache and fails on any miss; the cache
-holds essay text, so it isn't published.
+**Checking the run.** `manifest.json` records:
+- the git SHA, package version and full matrix config
+- the split hash and raw-data checksum
+- calls, tokens and dollars by purpose, with earlier runs of the same matrix kept in its history
 
-**Tests.** The regression oracle is **215 offline tests**, with no network and no live LLM. They cover the metrics
-(QWK checked against scikit-learn), the boundary graph and operators, the optimization loop (determinism under
-jitter, crash-and-resume equality, budget exhaustion, cancellation, provider-error bursts), the spend cap under
-concurrency, the rate limiter, the benchmark report and the service API.
+Every LLM response is cached. `guide benchmark gpt4o-mini-headline --replay` rebuilds the tables from the cache and
+fails on any miss. The cache holds essay text, so it isn't published.
+
+**Tests.** The regression oracle is **228 offline tests**, with no network and no live LLM. They cover:
+- the metrics (QWK checked against scikit-learn)
+- the boundary graph and operators
+- the optimization loop: determinism under jitter, crash-and-resume equality, budget exhaustion, cancellation,
+  provider-error bursts
+- the feature extractor and ordinal model
+- the spend cap under concurrency, the rate limiter, the benchmark report and the service API
 
 ---
 
