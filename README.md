@@ -2,16 +2,26 @@
 
 **Boundary-focused in-context exemplar optimization for LLM-based grading.**
 
-It has two graders that work together:
+**The problem: LLMs don't grade like people.** Out of the box, LLM scores agree only weakly with human grades, and
+the models rely on different signals. Compared with human raters they give short, underdeveloped essays higher
+scores, and longer essays with minor spelling or grammar errors lower ones
+([Mathew et al., 2026](https://doi.org/10.1016/j.caeai.2026.100666)). They also compress scores toward the middle of
+the scale. We see both effects on our headline benchmark: human raters gave 64 of 311 test essays the top score
+(3), and `gpt-4o-mini`, even with optimized examples, gave it only 3 times, calling 234 essays a "2" where
+humans called 180. The essays it misses are long ones with small, easily fixed errors.
+
+This repo narrows the gap with two graders that work together:
 
 - **Exemplar optimization.** When an LLM grades with few-shot demonstrations, which demonstrations it sees matters
-  more than almost anything else, and the search optimizes that selection. It looks for **boundary pairs**:
+  more than almost anything else, and the search optimizes that selection. Examples chosen at the score boundaries
+  show the model where human raters draw the lines between levels. It looks for **boundary pairs**:
   responses that look alike but sit one level apart. It optimizes a small, **fixed** example set with Bayesian
   optimization, and rewrites each rationale to say why the response earns *its* score **and not the neighbouring
   one**. The method adapts **GUIDE** (Chu et al., 2026, [arXiv:2603.00465](https://arxiv.org/abs/2603.00465)).
 - **A feature grader and a hybrid.** An LLM counts rubric evidence in each response, zero-shot (for writing
-  conventions: errors a reader fixes without effort, and errors that block meaning). A small ordinal model turns
-  the rates into a score. The **hybrid** adds the exemplar grader's prediction as one more input.
+  conventions: errors a reader fixes without effort, and errors that block meaning). Counts become rates per 100
+  words, so a long essay isn't marked down for its length. A small ordinal model turns the rates into a score,
+  fitted to human scores. The **hybrid** adds the exemplar grader's prediction as one more input.
 
 On the headline benchmark the exemplar grader is the most accurate of the LLM graders, but it almost never gives the
 top score. The hybrid keeps that accuracy and reaches human-level agreement (QWK 0.597 vs 0.599 between the two
@@ -257,7 +267,20 @@ configs/       tasks/, presets/, benchmarks/, backbones.yaml, pricing.yaml
 
 ## Citation
 
+The exemplar search adapts GUIDE (Chu et al.). The problem statement draws on Mathew et al.
+
 ```bibtex
+@article{mathew2026llms,
+  title   = {{LLMs} do not grade essays like humans},
+  author  = {Mathew, Jerin George and Taher, Sumayya and Kundu, Anindita and Barbosa, Denilson},
+  journal = {Computers and Education: Artificial Intelligence},
+  volume  = {11},
+  pages   = {100666},
+  year    = {2026},
+  doi     = {10.1016/j.caeai.2026.100666}
+}
+
+
 @article{chu2026guide,
   title   = {Optimizing In-Context Demonstrations for LLM-based Automated Grading},
   author  = {Chu, Yucheng and Li, Hang and Yang, Kaiqi and Copur-Gencturk, Yasemin and Haudek, Kevin and

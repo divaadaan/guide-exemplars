@@ -1,15 +1,27 @@
 # guide-exemplars: a walkthrough
 
-> **Which ten graded examples should an LLM see before it grades an essay?**
+> **LLMs don't grade essays the way people do. How close can we get?**
 
-guide-exemplars grades responses against an ordinal rubric with an LLM, and has two parts:
+An LLM grading against a rubric agrees only weakly with human raters, out of the box, because it relies on
+different signals. It gives short, underdeveloped essays higher scores than people do, and longer essays with
+minor spelling or grammar errors lower ones ([Mathew et al., 2026](https://doi.org/10.1016/j.caeai.2026.100666)).
+It also compresses scores toward the middle of the scale. Both show up in this repo's benchmark:
 
-- **An exemplar search.** It finds the small set of scored examples that makes the LLM grade most accurately. It
+- Human raters gave 64 of 311 test essays the top score of 3. `gpt-4o-mini` gave it only 3 times, even with
+  optimized examples.
+- It called 234 essays a "2", where the human raters called 180.
+- The essays it misses are long, fluent ones with small, easily fixed errors ([section 8](#8--how-its-evaluated)).
+
+guide-exemplars grades responses against an ordinal rubric with an LLM, and narrows that gap in two ways:
+
+- **An exemplar search.** It finds the small set of scored examples that makes the LLM grade most like the human
+  raters. Examples chosen at the score boundaries show the model where people draw the lines between levels. It
   looks for *boundary pairs*, essays that read alike but sit one score apart, and rewrites each example's rationale
   to say why it earns its score and not the neighbouring one. The search adapts GUIDE (Chu et al., 2026,
   [arXiv:2603.00465](https://arxiv.org/abs/2603.00465)).
-- **A feature grader.** An LLM counts the evidence the rubric cares about, and a small ordinal model turns the
-  counts into a score. The **hybrid** feeds it the exemplar grader's prediction as well.
+- **A feature grader.** An LLM counts the evidence the rubric cares about. Counts become rates per 100 words, so
+  length stops working against an essay, and a small ordinal model fitted to human scores turns them into a score.
+  The **hybrid** feeds it the exemplar grader's prediction as well.
 
 The results are a frozen, versioned example set behind a grading endpoint, and a fitted model. It ships as a Python
 library, a CLI and a FastAPI service with a live dashboard.
